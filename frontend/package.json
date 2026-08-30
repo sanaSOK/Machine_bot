@@ -1,0 +1,32 @@
+{
+  "name": "telegram-attendance-frontend",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host",
+    "build": "vue-tsc -b && vite build",
+    "preview": "vite preview",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "axios": "^1.7.9",
+    "lucide-vue-next": "^0.475.0",
+    "pinia": "^3.0.1",
+    "vue": "^3.5.13",
+    "vue-router": "^4.5.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.0.7",
+    "@types/node": "^22.13.4",
+    "@types/telegram-web-app": "^7.10.0",
+    "@vitejs/plugin-vue": "^5.2.1",
+    "@vue/tsconfig": "^0.7.0",
+    "jsdom": "^29.1.1",
+    "tailwindcss": "^4.0.7",
+    "typescript": "^5.7.3",
+    "vite": "^6.1.0",
+    "vitest": "^3.0.5",
+    "vue-tsc": "^2.2.0"
+  }
+}
