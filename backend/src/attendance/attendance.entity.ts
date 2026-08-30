@@ -38,6 +38,9 @@ export class Attendance {
   @Column({ type: 'decimal', precision: 11, scale: 8, nullable: true })
   longitude: number | null;
 
+  @Column({ type: 'text', nullable: true })
+  address: string | null;
+
   @CreateDateColumn({ name: 'created_at' })
   created_at: Date;
 

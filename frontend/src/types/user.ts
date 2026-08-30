@@ -5,6 +5,7 @@ export interface User {
   first_name: string;
   last_name: string | null;
   photo_url: string | null;
+  address?: string | null;
   is_active: boolean;
   created_at: string;
   updated_at: string;

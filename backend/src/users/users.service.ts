@@ -30,6 +30,15 @@ export class UsersService {
     });
   }
 
+  async updateUserAddress(userId: number, address: string): Promise<User | null> {
+    const user = await this.findById(userId);
+    if (user && address) {
+      user.address = address;
+      return this.userRepository.save(user);
+    }
+    return user;
+  }
+
   async findOrCreateFromTelegram(telegramUser: TelegramUserData): Promise<User> {
     const telegramIdStr = String(telegramUser.id);
     let user = await this.findByTelegramId(telegramIdStr);

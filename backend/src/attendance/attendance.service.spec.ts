@@ -8,6 +8,7 @@ import { User } from '../users/user.entity';
 describe('AttendanceService', () => {
   let service: AttendanceService;
   let repositoryMock: any;
+  let userRepositoryMock: any;
 
   const mockUser: User = {
     id: 1,
@@ -16,6 +17,7 @@ describe('AttendanceService', () => {
     last_name: 'Doe',
     username: 'janedoe',
     photo_url: null,
+    address: 'Phnom Penh, Cambodia',
     is_active: true,
     created_at: new Date(),
     updated_at: new Date(),
@@ -42,12 +44,20 @@ describe('AttendanceService', () => {
       save: jest.fn((entity) => Promise.resolve({ id: 1, created_at: new Date(), ...entity })),
     };
 
+    userRepositoryMock = {
+      save: jest.fn((user) => Promise.resolve(user)),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AttendanceService,
         {
           provide: getRepositoryToken(Attendance),
           useValue: repositoryMock,
+        },
+        {
+          provide: getRepositoryToken(User),
+          useValue: userRepositoryMock,
         },
       ],
     }).compile();
@@ -58,7 +68,7 @@ describe('AttendanceService', () => {
   it('should allow check-in when user has no attendance today', async () => {
     repositoryMock.find.mockResolvedValue([]);
 
-    const result = await service.checkIn(mockUser, mockMulterFile, { latitude: 11.5564, longitude: 104.9282 });
+    const result = await service.checkIn(mockUser, mockMulterFile, { latitude: 11.5564, longitude: 104.9282, address: 'Phnom Penh, Cambodia' });
     expect(result).toBeDefined();
     expect(result.action).toBe(AttendanceAction.CHECK_IN);
     expect(repositoryMock.save).toHaveBeenCalled();
@@ -89,7 +99,7 @@ describe('AttendanceService', () => {
       },
     ]);
 
-    const result = await service.checkOut(mockUser, mockMulterFile, { latitude: 11.5564, longitude: 104.9282 });
+    const result = await service.checkOut(mockUser, mockMulterFile, { latitude: 11.5564, longitude: 104.9282, address: 'Phnom Penh, Cambodia' });
     expect(result).toBeDefined();
     expect(result.action).toBe(AttendanceAction.CHECK_OUT);
   });

@@ -1,4 +1,4 @@
-import { IsOptional, IsNumber, Min, Max } from 'class-validator';
+import { IsOptional, IsNumber, Min, Max, IsString } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class CheckInDto {
@@ -15,4 +15,8 @@ export class CheckInDto {
   @Min(-180)
   @Max(180)
   longitude?: number;
+
+  @IsOptional()
+  @IsString()
+  address?: string;
 }

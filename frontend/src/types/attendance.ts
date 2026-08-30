@@ -7,6 +7,7 @@ export interface AttendanceRecord {
   photo_url: string;
   latitude: number | null;
   longitude: number | null;
+  address?: string | null;
   created_at: string;
 }
 
@@ -22,10 +23,12 @@ export interface CheckInPayload {
   photo: Blob;
   latitude?: number;
   longitude?: number;
+  address?: string;
 }
 
 export interface CheckOutPayload {
   photo: Blob;
   latitude?: number;
   longitude?: number;
+  address?: string;
 }

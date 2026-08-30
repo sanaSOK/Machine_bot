@@ -20,15 +20,30 @@
       <h2 class="text-lg font-bold text-white truncate flex items-center gap-1.5">
         <span>👤</span> {{ fullName }}
       </h2>
-      <p class="text-sm text-indigo-300 font-medium truncate">
+      <p class="text-sm text-indigo-300 font-medium truncate mb-1">
         {{ user?.username ? `@${user.username}` : 'Telegram Employee' }}
       </p>
+
+      <!-- Compact Short Google Maps Link Button: [ 📍 Google Maps ] -->
+      <a
+        v-if="googleMapsUrl"
+        :href="googleMapsUrl"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="inline-flex items-center gap-1.5 text-[11px] text-emerald-400 hover:text-emerald-300 font-bold px-2.5 py-1 rounded-full bg-emerald-500/15 border border-emerald-500/30 hover:bg-emerald-500/25 transition-all shadow-sm group"
+        title="Open in Google Maps"
+      >
+        <MapPin class="w-3 h-3 text-emerald-400 shrink-0 group-hover:scale-110 transition-transform" />
+        <span>Google Maps</span>
+        <ExternalLink class="w-2.5 h-2.5 text-emerald-400/80 shrink-0 ml-0.5" />
+      </a>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed } from 'vue';
+import { MapPin, ExternalLink } from 'lucide-vue-next';
 import type { User } from '../types/user';
 
 const props = defineProps<{
@@ -45,5 +60,10 @@ const userInitials = computed(() => {
   const first = props.user.first_name.charAt(0).toUpperCase();
   const last = props.user.last_name ? props.user.last_name.charAt(0).toUpperCase() : '';
   return first + last;
+});
+
+const googleMapsUrl = computed(() => {
+  if (!props.user?.address) return null;
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(props.user.address)}`;
 });
 </script>

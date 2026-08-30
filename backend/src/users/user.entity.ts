@@ -5,7 +5,6 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   OneToMany,
-  Index,
 } from 'typeorm';
 import { Attendance } from '../attendance/attendance.entity';
 
@@ -28,6 +27,9 @@ export class User {
 
   @Column({ name: 'photo_url', type: 'varchar', length: 512, nullable: true })
   photo_url: string | null;
+
+  @Column({ type: 'text', nullable: true })
+  address: string | null;
 
   @Column({ name: 'is_active', type: 'boolean', default: true })
   is_active: boolean;

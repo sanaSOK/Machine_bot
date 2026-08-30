@@ -7,6 +7,7 @@ import {
   postCheckInApi,
   postCheckOutApi,
 } from '../services/attendance.service';
+import { useAuthStore } from './auth.store';
 
 export const useAttendanceStore = defineStore('attendance', () => {
   const todayStatus = ref<TodayStatus>({
@@ -48,7 +49,12 @@ export const useAttendanceStore = defineStore('attendance', () => {
     }
   }
 
-  async function submitCheckIn(photoBlob: Blob, latitude?: number, longitude?: number): Promise<boolean> {
+  async function submitCheckIn(
+    photoBlob: Blob,
+    latitude?: number,
+    longitude?: number,
+    address?: string,
+  ): Promise<boolean> {
     isLoading.value = true;
     error.value = null;
     successMessage.value = null;
@@ -62,9 +68,19 @@ export const useAttendanceStore = defineStore('attendance', () => {
       if (longitude !== undefined && longitude !== null) {
         formData.append('longitude', longitude.toString());
       }
+      if (address) {
+        formData.append('address', address);
+      }
 
       await postCheckInApi(formData);
       successMessage.value = 'Check In Successful! Have a great day!';
+
+      // Update user address in auth store if returned
+      const authStore = useAuthStore();
+      if (address && authStore.user) {
+        authStore.user.address = address;
+      }
+
       await fetchTodayStatus();
       return true;
     } catch (err: any) {
@@ -75,7 +91,12 @@ export const useAttendanceStore = defineStore('attendance', () => {
     }
   }
 
-  async function submitCheckOut(photoBlob: Blob, latitude?: number, longitude?: number): Promise<boolean> {
+  async function submitCheckOut(
+    photoBlob: Blob,
+    latitude?: number,
+    longitude?: number,
+    address?: string,
+  ): Promise<boolean> {
     isLoading.value = true;
     error.value = null;
     successMessage.value = null;
@@ -89,9 +110,18 @@ export const useAttendanceStore = defineStore('attendance', () => {
       if (longitude !== undefined && longitude !== null) {
         formData.append('longitude', longitude.toString());
       }
+      if (address) {
+        formData.append('address', address);
+      }
 
       await postCheckOutApi(formData);
       successMessage.value = 'Check Out Successful! See you next time!';
+
+      const authStore = useAuthStore();
+      if (address && authStore.user) {
+        authStore.user.address = address;
+      }
+
       await fetchTodayStatus();
       return true;
     } catch (err: any) {

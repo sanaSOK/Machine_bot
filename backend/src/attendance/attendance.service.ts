@@ -19,6 +19,8 @@ export class AttendanceService {
   constructor(
     @InjectRepository(Attendance)
     private readonly attendanceRepository: Repository<Attendance>,
+    @InjectRepository(User)
+    private readonly userRepository: Repository<User>,
   ) {}
 
   async getTodayStatus(userId: number): Promise<TodayStatusResponse> {
@@ -51,7 +53,7 @@ export class AttendanceService {
         canCheckOut = true;
       } else if (lastRecord.action === AttendanceAction.CHECK_OUT) {
         status = 'COMPLETED';
-        canCheckIn = true; // allow new cycle if needed or 1 check-in per day
+        canCheckIn = true;
         canCheckOut = false;
       }
     }
@@ -81,6 +83,12 @@ export class AttendanceService {
 
     const photoUrl = this.formatFileUrl(file);
 
+    // If user provided a location address, update user address
+    if (dto.address && user) {
+      user.address = dto.address;
+      await this.userRepository.save(user);
+    }
+
     const attendance = this.attendanceRepository.create({
       user_id: user.id,
       user,
@@ -88,6 +96,7 @@ export class AttendanceService {
       photo_url: photoUrl,
       latitude: dto.latitude !== undefined ? dto.latitude : null,
       longitude: dto.longitude !== undefined ? dto.longitude : null,
+      address: dto.address || null,
     });
 
     return this.attendanceRepository.save(attendance);
@@ -109,6 +118,12 @@ export class AttendanceService {
 
     const photoUrl = this.formatFileUrl(file);
 
+    // If user provided a location address, update user address
+    if (dto.address && user) {
+      user.address = dto.address;
+      await this.userRepository.save(user);
+    }
+
     const attendance = this.attendanceRepository.create({
       user_id: user.id,
       user,
@@ -116,6 +131,7 @@ export class AttendanceService {
       photo_url: photoUrl,
       latitude: dto.latitude !== undefined ? dto.latitude : null,
       longitude: dto.longitude !== undefined ? dto.longitude : null,
+      address: dto.address || null,
     });
 
     return this.attendanceRepository.save(attendance);
@@ -129,7 +145,6 @@ export class AttendanceService {
   }
 
   private formatFileUrl(file: Express.Multer.File): string {
-    // Normalizing file path stored to relative URL format: /uploads/attendance/...
     const normalizedPath = file.path.replace(/\\/g, '/');
     const uploadIndex = normalizedPath.indexOf('uploads/');
     if (uploadIndex !== -1) {
