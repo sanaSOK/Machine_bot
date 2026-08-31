@@ -53,7 +53,7 @@
       <button
         v-if="!isCaptured && isStreaming && !isAutoCapturing"
         @click="toggleFacingMode"
-        class="absolute top-4 right-4 z-20 p-2.5 rounded-full bg-slate-900/80 hover:bg-slate-800 text-white backdrop-blur-md border border-slate-700/60 shadow-xl transition-all active:scale-90 flex items-center gap-1.5 text-xs font-bold cursor-pointer"
+        class="absolute top-4 right-4 z-20 p-2.5 rounded-full bg-slate-900/80 hover:bg-slate-800 text-white backdrop-blur-md border border-slate-700/60 shadow-xl transition-all active:scale-90 flex items-center gap-1.5 text-xs font-bold"
       >
         <RefreshCw class="w-3.5 h-3.5 text-indigo-400" />
         <span>{{ currentFacingMode === 'user' ? 'Switch to Back' : 'Switch to Front' }}</span>
@@ -66,7 +66,7 @@
       >
         <img :src="frontPhotoDataUrl" alt="Front selfie snapshot" class="w-full h-full object-cover" />
         <div class="absolute bottom-0 inset-x-0 py-0.5 bg-emerald-950/90 text-[8px] font-bold text-center text-emerald-200">
-          ✓ Selfie {{ frontTimeData?.timeOnly || '' }}
+          ✓ Selfie Taken
         </div>
       </div>
 
@@ -74,7 +74,7 @@
       <img
         v-if="isCaptured && capturedImageUrl"
         :src="capturedImageUrl"
-        alt="Captured dual snapshot with GPS overlay"
+        alt="Captured dual snapshot"
         class="w-full h-full object-cover"
       />
 
@@ -96,8 +96,8 @@
       <!-- Auto Capturing / Switching Overlay -->
       <div v-if="isAutoCapturing" class="absolute inset-0 z-30 flex flex-col items-center justify-center bg-slate-950/85 backdrop-blur-sm p-4 text-center">
         <Loader2 class="w-10 h-10 text-indigo-400 animate-spin mb-3" />
-        <h4 class="text-sm font-bold text-white mb-1">Capturing Dual Photo & Live Location...</h4>
-        <p class="text-xs text-indigo-200 font-medium">{{ captureStep === 'FRONT' ? 'Taking Selfie Photo...' : 'Taking Back Camera Photo...' }}</p>
+        <h4 class="text-sm font-bold text-white mb-1">Capturing Dual Photo...</h4>
+        <p class="text-xs text-indigo-200 font-medium">Switching to {{ currentFacingMode === 'user' ? 'Front Selfie' : 'Back Camera' }}</p>
       </div>
 
       <!-- Loading overlay while initializing camera -->
@@ -113,7 +113,7 @@
       <button
         v-if="!isCaptured && isStreaming && !isAutoCapturing"
         @click="startAutoDualCapture"
-        class="w-full py-4 bg-gradient-to-r from-indigo-500 via-purple-600 to-emerald-500 hover:from-indigo-400 hover:to-emerald-400 text-white font-bold rounded-2xl shadow-xl flex items-center justify-center gap-2 transform active:scale-98 transition-all glow-indigo cursor-pointer"
+        class="w-full py-4 bg-gradient-to-r from-indigo-500 via-purple-600 to-emerald-500 hover:from-indigo-400 hover:to-emerald-400 text-white font-bold rounded-2xl shadow-xl flex items-center justify-center gap-2 transform active:scale-98 transition-all glow-indigo"
       >
         <div class="w-6 h-6 rounded-full border-2 border-white flex items-center justify-center">
           <div class="w-3 h-3 bg-white rounded-full"></div>
@@ -125,7 +125,7 @@
       <div v-if="isCaptured" class="flex gap-3 w-full">
         <button
           @click="retakePhoto"
-          class="flex-1 py-3.5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold rounded-2xl border border-slate-700 transition-all flex items-center justify-center gap-2 cursor-pointer"
+          class="flex-1 py-3.5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold rounded-2xl border border-slate-700 transition-all flex items-center justify-center gap-2"
         >
           <RotateCcw class="w-4 h-4" />
           <span>Retake</span>
@@ -133,7 +133,7 @@
 
         <button
           @click="confirmPhoto"
-          class="flex-1 py-3.5 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-bold rounded-2xl shadow-lg transition-all flex items-center justify-center gap-2 glow-emerald cursor-pointer"
+          class="flex-1 py-3.5 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-bold rounded-2xl shadow-lg transition-all flex items-center justify-center gap-2 glow-emerald"
         >
           <Check class="w-4 h-4" />
           <span>Confirm & Submit</span>
@@ -143,7 +143,7 @@
       <!-- Cancel Button -->
       <button
         @click="$emit('cancel')"
-        class="w-full py-3 bg-slate-900/60 hover:bg-slate-800/80 text-slate-400 hover:text-slate-200 font-semibold rounded-2xl border border-slate-800/80 transition-all text-sm cursor-pointer"
+        class="w-full py-3 bg-slate-900/60 hover:bg-slate-800/80 text-slate-400 hover:text-slate-200 font-semibold rounded-2xl border border-slate-800/80 transition-all text-sm"
       >
         Cancel
       </button>
@@ -176,15 +176,6 @@ const currentFacingMode = ref<'user' | 'environment'>('user');
 const captureStep = ref<'FRONT' | 'BACK'>('FRONT');
 
 const frontPhotoDataUrl = ref<string | null>(null);
-
-interface TimeInfo {
-  full: string;
-  timeOnly: string;
-}
-
-const frontTimeData = ref<TimeInfo | null>(null);
-const rearTimeData = ref<TimeInfo | null>(null);
-
 let frontImageElement: HTMLImageElement | null = null;
 let backImageElement: HTMLImageElement | null = null;
 let capturedBlob: Blob | null = null;
@@ -250,43 +241,38 @@ async function toggleFacingMode() {
 
 /**
  * Executes seamless 2-step Dual Photo capture (Front Selfie + Back Workplace)
- * with Timestamps & Live GPS City/Province Overlay
+ * 100% compatible with iOS Safari & Android WebKit
  */
 async function startAutoDualCapture() {
   if (isAutoCapturing.value) return;
   isAutoCapturing.value = true;
 
   try {
-    // 1. Front Selfie Photo
+    // 1. Ensure Front Selfie Camera is active and capture Front Photo
     if (currentFacingMode.value !== 'user' || !isStreaming.value) {
       await startCamera('user');
       await new Promise((r) => setTimeout(r, 600));
     }
 
-    frontTimeData.value = formatDateTimeStr(new Date());
     const frontDataUrl = captureCurrentStreamToDataUrl(true);
     frontPhotoDataUrl.value = frontDataUrl;
     frontImageElement = await loadImage(frontDataUrl);
 
     captureStep.value = 'BACK';
 
-    // 2. Back Camera Photo
+    // 2. Switch to Back Camera and capture Back Photo
     await startCamera('environment');
     await new Promise((r) => setTimeout(r, 800));
 
-    rearTimeData.value = formatDateTimeStr(new Date());
     const backDataUrl = captureCurrentStreamToDataUrl(false);
     backImageElement = await loadImage(backDataUrl);
 
-    // 3. Fetch Live Device GPS & City/Province Location Name
-    const gpsData = await getDeviceGPS();
-
-    // 4. Create Dual Composite Snapshot with Overlay (Rear, Front, Final timestamps & GPS location)
-    await createCompositeDualPhoto(gpsData);
+    // 3. Create Dual Composite Snapshot (Back Workplace + Inset Front Selfie)
+    createCompositeDualPhoto();
   } catch (err: any) {
     console.error('Auto dual capture error:', err);
-    const fallbackGps = { lat: 11.5564, lng: 104.9282, locationName: 'Phnom Penh' };
-    await createCompositeDualPhoto(fallbackGps);
+    // Fallback single capture if device fails second camera
+    createCompositeDualPhoto();
   } finally {
     isAutoCapturing.value = false;
   }
@@ -321,7 +307,7 @@ function loadImage(src: string): Promise<HTMLImageElement> {
   });
 }
 
-async function createCompositeDualPhoto(gpsData: { lat: number; lng: number; locationName: string }) {
+function createCompositeDualPhoto() {
   if (!canvasRef.value) return;
 
   const canvas = canvasRef.value;
@@ -341,130 +327,44 @@ async function createCompositeDualPhoto(gpsData: { lat: number; lng: number; loc
     ctx.drawImage(frontImageElement, 0, 0, width, height);
   }
 
-  const finalTimeData = formatDateTimeStr(new Date());
-  const rearTime = rearTimeData.value || finalTimeData;
-  const frontTime = frontTimeData.value || finalTimeData;
-
-  // 2. Draw Inset Front Selfie Photo in bottom-right corner with "Selfie HH:mm:ss" tag
-  if (frontImageElement) {
-    const insetWidth = Math.round(width * 0.30);
+  // 2. Draw Inset Front Selfie Photo in top-right corner
+  if (frontImageElement && backImageElement) {
+    const insetWidth = Math.round(width * 0.32);
     const insetHeight = Math.round(insetWidth * (4 / 3));
     const insetX = width - insetWidth - 30;
-    const insetY = height - insetHeight - 30;
+    const insetY = 30;
 
     ctx.save();
-    // Clip rounded rect for Selfie PIP frame
+    // Rounded border clip for inset PIP selfie frame
     ctx.beginPath();
-    ctx.roundRect(insetX, insetY, insetWidth, insetHeight, 18);
+    ctx.roundRect(insetX, insetY, insetWidth, insetHeight, 20);
     ctx.clip();
     ctx.drawImage(frontImageElement, 0, 0, frontImageElement.width, frontImageElement.height, insetX, insetY, insetWidth, insetHeight);
     ctx.restore();
 
-    // Draw stroke border around Selfie frame
+    // Draw border stroke around inset selfie frame
     ctx.save();
-    ctx.strokeStyle = '#ffffff';
-    ctx.lineWidth = 4;
+    ctx.strokeStyle = '#6366f1';
+    ctx.lineWidth = 6;
     ctx.beginPath();
-    ctx.roundRect(insetX, insetY, insetWidth, insetHeight, 18);
+    ctx.roundRect(insetX, insetY, insetWidth, insetHeight, 20);
     ctx.stroke();
     ctx.restore();
-
-    // Draw "Selfie HH:mm:ss" label bar at bottom of PIP frame
-    ctx.save();
-    const tagHeight = Math.round(insetHeight * 0.16);
-    const tagY = insetY + insetHeight - tagHeight;
-
-    ctx.fillStyle = 'rgba(15, 23, 42, 0.85)';
-    ctx.beginPath();
-    ctx.roundRect(insetX, tagY, insetWidth, tagHeight, [0, 0, 18, 18]);
-    ctx.fill();
-
-    ctx.fillStyle = '#ffffff';
-    ctx.font = `bold ${Math.round(tagHeight * 0.60)}px sans-serif`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(`Selfie ${frontTime.timeOnly}`, insetX + insetWidth / 2, tagY + tagHeight / 2);
-    ctx.restore();
   }
-
-  // 3. Draw Bottom-Left Dark Overlay Box with Timestamps (Rear, Front, Final) & GPS Location (City/Province)
-  const lines: string[] = [
-    `Rear:  ${rearTime.full}`,
-    `Front: ${frontTime.full}`,
-    ``,
-    `Final: ${finalTimeData.full}`,
-    `GPS: ${gpsData.lat.toFixed(6)}, ${gpsData.lng.toFixed(6)}`,
-  ];
-  if (gpsData.locationName) {
-    lines.push(`Location: ${gpsData.locationName}`);
-  }
-
-  const fontSize = Math.max(16, Math.round(width * 0.022));
-  const lineHeight = Math.round(fontSize * 1.45);
-  const padding = Math.round(fontSize * 0.9);
-
-  ctx.save();
-  ctx.font = `bold ${fontSize}px monospace, sans-serif`;
-
-  let maxTextWidth = 0;
-  for (const line of lines) {
-    const w = ctx.measureText(line).width;
-    if (w > maxTextWidth) maxTextWidth = w;
-  }
-
-  const boxWidth = maxTextWidth + padding * 2;
-  const boxHeight = lines.length * lineHeight + padding * 2;
-
-  // Position box at bottom-left corner
-  const boxX = 30;
-  const boxY = height - boxHeight - 30;
-
-  // Dark semi-transparent slate container
-  ctx.fillStyle = 'rgba(15, 23, 42, 0.85)';
-  ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
-  ctx.lineWidth = 2;
-
-  ctx.beginPath();
-  ctx.roundRect(boxX, boxY, boxWidth, boxHeight, 18);
-  ctx.fill();
-  ctx.stroke();
-
-  // Draw text lines inside box
-  ctx.textAlign = 'left';
-  ctx.textBaseline = 'top';
-
-  lines.forEach((line, idx) => {
-    if (line) {
-      const lineY = boxY + padding + idx * lineHeight;
-      if (line.startsWith('Final:')) {
-        ctx.fillStyle = '#60a5fa'; // Bright blue for Final
-      } else if (line.startsWith('GPS:') || line.startsWith('Location:')) {
-        ctx.fillStyle = '#34d399'; // Emerald green for GPS & City/Province
-      } else {
-        ctx.fillStyle = '#f8fafc'; // White for Rear & Front
-      }
-      ctx.fillText(line, boxX + padding, lineY);
-    }
-  });
-
-  ctx.restore();
 
   // Compress into JPEG Blob
-  return new Promise<void>((resolve) => {
-    canvas.toBlob(
-      (blob) => {
-        if (blob) {
-          capturedBlob = blob;
-          capturedImageUrl.value = URL.createObjectURL(blob);
-          isCaptured.value = true;
-          stopCamera();
-        }
-        resolve();
-      },
-      'image/jpeg',
-      0.90,
-    );
-  });
+  canvas.toBlob(
+    (blob) => {
+      if (blob) {
+        capturedBlob = blob;
+        capturedImageUrl.value = URL.createObjectURL(blob);
+        isCaptured.value = true;
+        stopCamera();
+      }
+    },
+    'image/jpeg',
+    0.88,
+  );
 }
 
 function retakePhoto() {
@@ -473,8 +373,6 @@ function retakePhoto() {
     capturedImageUrl.value = null;
   }
   frontPhotoDataUrl.value = null;
-  frontTimeData.value = null;
-  rearTimeData.value = null;
   frontImageElement = null;
   backImageElement = null;
   capturedBlob = null;
@@ -489,65 +387,6 @@ function confirmPhoto() {
   }
 }
 
-function formatDateTimeStr(date: Date): TimeInfo {
-  const day = String(date.getDate()).padStart(2, '0');
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const year = date.getFullYear();
-  const hours = String(date.getHours()).padStart(2, '0');
-  const minutes = String(date.getMinutes()).padStart(2, '0');
-  const seconds = String(date.getSeconds()).padStart(2, '0');
-
-  return {
-    full: `${day}/${month}/${year} ${hours}:${minutes}:${seconds}`,
-    timeOnly: `${hours}:${minutes}:${seconds}`,
-  };
-}
-
-async function getDeviceGPS(): Promise<{ lat: number; lng: number; locationName: string }> {
-  return new Promise((resolve) => {
-    if (!navigator.geolocation) {
-      return resolve({ lat: 11.5564, lng: 104.9282, locationName: 'Phnom Penh, Cambodia' });
-    }
-
-    navigator.geolocation.getCurrentPosition(
-      async (pos) => {
-        const lat = pos.coords.latitude;
-        const lng = pos.coords.longitude;
-        const locationName = await fetchCityProvinceCountry(lat, lng);
-        resolve({ lat, lng, locationName });
-      },
-      () => {
-        resolve({ lat: 11.5564, lng: 104.9282, locationName: 'Phnom Penh, Cambodia' });
-      },
-      { timeout: 6000, enableHighAccuracy: true, maximumAge: 0 },
-    );
-  });
-}
-
-async function fetchCityProvinceCountry(lat: number, lng: number): Promise<string> {
-  try {
-    const response = await fetch(
-      `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=10&addressdetails=1`,
-    );
-    if (response.ok) {
-      const data = await response.json();
-      if (data && data.address) {
-        const a = data.address;
-        const cityOrProvince = a.state || a.city || a.province || a.town || a.county || a.municipality || a.region;
-        const country = a.country;
-        if (cityOrProvince && country) {
-          return `${cityOrProvince}, ${country}`;
-        }
-        if (cityOrProvince) return cityOrProvince;
-        if (country) return country;
-      }
-    }
-  } catch (err) {
-    console.warn('City/Province/Country lookup error:', err);
-  }
-  return 'Phnom Penh, Cambodia';
-}
-
 onMounted(() => {
   startCamera('user');
 });
@@ -559,4 +398,3 @@ onBeforeUnmount(() => {
   }
 });
 </script>
-

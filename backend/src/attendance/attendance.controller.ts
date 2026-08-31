@@ -31,11 +31,19 @@ const imageFileFilter = (req: any, file: Express.Multer.File, callback: any) => 
 };
 
 const storageConfig = diskStorage({
-  destination: (req, file, cb) => {
+  destination: (req: any, file: Express.Multer.File, cb) => {
+    const user = req.user;
+    // Prefer Telegram username (e.g. "superappbot"), or fallback to telegram_user_id (e.g. "639544003") or user_id
+    const rawUsername = user?.username || user?.telegram_user_id || `user_${user?.id || 'unknown'}`;
+    // Sanitize folder name for filesystem compatibility
+    const userFolder = rawUsername.replace(/[^a-zA-Z0-9_-]/g, '_');
+
     const now = new Date();
     const year = now.getFullYear().toString();
     const month = String(now.getMonth() + 1).padStart(2, '0');
-    const uploadPath = path.join(process.cwd(), 'uploads', 'attendance', year, month);
+
+    // Subfolder path: uploads/attendance/<userFolder>/YYYY/MM
+    const uploadPath = path.join(process.cwd(), 'uploads', 'attendance', userFolder, year, month);
 
     if (!fs.existsSync(uploadPath)) {
       fs.mkdirSync(uploadPath, { recursive: true });
