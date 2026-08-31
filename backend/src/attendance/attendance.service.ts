@@ -38,8 +38,9 @@ export class AttendanceService {
       },
     });
 
-    const checkInRecord = todayRecords.find((r) => r.action === AttendanceAction.CHECK_IN) || null;
-    const checkOutRecord = [...todayRecords].reverse().find((r) => r.action === AttendanceAction.CHECK_OUT) || null;
+    // Fetch the LATEST Check-In record for today
+    const checkInRecord = [...todayRecords].reverse().find((r) => r.action === AttendanceAction.CHECK_IN) || null;
+    let checkOutRecord = [...todayRecords].reverse().find((r) => r.action === AttendanceAction.CHECK_OUT) || null;
 
     let status: 'NOT_CHECKED_IN' | 'WORKING' | 'COMPLETED' = 'NOT_CHECKED_IN';
     let canCheckIn = true;
@@ -49,11 +50,12 @@ export class AttendanceService {
       const lastRecord = todayRecords[todayRecords.length - 1];
       if (lastRecord.action === AttendanceAction.CHECK_IN) {
         status = 'WORKING';
-        canCheckIn = false;
+        canCheckIn = true; // Allow re-checking in to update to current live time
         canCheckOut = true;
+        checkOutRecord = null; // While currently working/checked-in, hide previous session check-out time
       } else if (lastRecord.action === AttendanceAction.CHECK_OUT) {
         status = 'COMPLETED';
-        canCheckIn = true;
+        canCheckIn = true; // Allow new check-in session
         canCheckOut = false;
       }
     }
@@ -76,19 +78,15 @@ export class AttendanceService {
       throw new BadRequestException('Attendance photo is required for check in');
     }
 
-    const todayStatus = await this.getTodayStatus(user.id);
-    if (!todayStatus.canCheckIn) {
-      throw new BadRequestException('Already checked in. You must check out before checking in again.');
-    }
-
     const photoUrl = this.formatFileUrl(file);
 
-    // If user provided a location address, update user address
+    // Update user address if provided
     if (dto.address && user) {
       user.address = dto.address;
       await this.userRepository.save(user);
     }
 
+    // Save Check-In record with current exact timestamp
     const attendance = this.attendanceRepository.create({
       user_id: user.id,
       user,
@@ -97,6 +95,7 @@ export class AttendanceService {
       latitude: dto.latitude !== undefined ? dto.latitude : null,
       longitude: dto.longitude !== undefined ? dto.longitude : null,
       address: dto.address || null,
+      created_at: new Date(), // Current Live Exact Timestamp
     });
 
     return this.attendanceRepository.save(attendance);
@@ -118,12 +117,12 @@ export class AttendanceService {
 
     const photoUrl = this.formatFileUrl(file);
 
-    // If user provided a location address, update user address
     if (dto.address && user) {
       user.address = dto.address;
       await this.userRepository.save(user);
     }
 
+    // Save Check-Out record with current exact timestamp
     const attendance = this.attendanceRepository.create({
       user_id: user.id,
       user,
@@ -132,6 +131,7 @@ export class AttendanceService {
       latitude: dto.latitude !== undefined ? dto.latitude : null,
       longitude: dto.longitude !== undefined ? dto.longitude : null,
       address: dto.address || null,
+      created_at: new Date(), // Current Live Exact Timestamp
     });
 
     return this.attendanceRepository.save(attendance);

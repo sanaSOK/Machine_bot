@@ -85,11 +85,11 @@
               <span>🚪</span> Check Out
             </div>
             <div class="text-base font-bold text-slate-100">
-              {{ todayStatus.checkOut ? formatTime(todayStatus.checkOut.created_at) : 'Not yet' }}
+              {{ (todayStatus.status !== 'WORKING' && todayStatus.checkOut) ? formatTime(todayStatus.checkOut.created_at) : 'Not yet' }}
             </div>
           </div>
 
-          <div v-if="todayStatus.checkOut" class="mt-2 pt-2 border-t border-slate-800/80">
+          <div v-if="todayStatus.status !== 'WORKING' && todayStatus.checkOut" class="mt-2 pt-2 border-t border-slate-800/80">
             <a
               v-if="getMapsUrl(todayStatus.checkOut)"
               :href="getMapsUrl(todayStatus.checkOut)!"

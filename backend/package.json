@@ -12,6 +12,7 @@
     "start:dev": "nest start --watch",
     "start:debug": "nest start --debug --watch",
     "start:prod": "node dist/main",
+    "tunnel": ".\\cloudflared.exe tunnel --url http://localhost:3000",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",

@@ -74,7 +74,7 @@ describe('AttendanceService', () => {
     expect(repositoryMock.save).toHaveBeenCalled();
   });
 
-  it('should throw BadRequestException when user tries to check-in twice consecutively', async () => {
+  it('should allow re-check-in to update check-in time to current live time', async () => {
     repositoryMock.find.mockResolvedValue([
       {
         id: 1,
@@ -84,9 +84,10 @@ describe('AttendanceService', () => {
       },
     ]);
 
-    await expect(
-      service.checkIn(mockUser, mockMulterFile, { latitude: 11.5564, longitude: 104.9282 }),
-    ).rejects.toThrow(BadRequestException);
+    const result = await service.checkIn(mockUser, mockMulterFile, { latitude: 11.5564, longitude: 104.9282, address: 'Phnom Penh, Cambodia' });
+    expect(result).toBeDefined();
+    expect(result.action).toBe(AttendanceAction.CHECK_IN);
+    expect(repositoryMock.save).toHaveBeenCalled();
   });
 
   it('should allow check-out after check-in', async () => {
