@@ -43,25 +43,96 @@
       </div>
     </div>
 
-    <!-- Attendance Snapshot Image Preview -->
-    <div v-if="fullPhotoUrl" class="shrink-0">
+    <!-- Attendance Snapshot Image Preview (Clickable) -->
+    <div v-if="fullPhotoUrl" class="shrink-0 relative group">
       <img
         :src="fullPhotoUrl"
         alt="Attendance snapshot"
-        class="w-14 h-14 rounded-xl object-cover border border-slate-700/80 shadow-md bg-slate-800"
+        @click="showPhotoModal = true"
+        class="w-14 h-14 rounded-xl object-cover border border-slate-700/80 shadow-md bg-slate-800 cursor-pointer hover:scale-105 active:scale-95 transition-all hover:border-indigo-500 ring-2 ring-transparent hover:ring-indigo-500/50"
+        title="Click to expand full photo"
       />
+      <div class="absolute inset-0 rounded-xl bg-indigo-500/20 opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity flex items-center justify-center text-white text-[10px] font-bold">
+        🔍
+      </div>
     </div>
+
+    <!-- Full Screen Photo Lightbox Modal -->
+    <Teleport to="body">
+      <Transition name="fade">
+        <div
+          v-if="showPhotoModal"
+          class="fixed inset-0 z-50 bg-slate-950/90 backdrop-blur-md flex flex-col items-center justify-center p-4"
+          @click.self="showPhotoModal = false"
+        >
+          <div class="relative max-w-lg w-full bg-slate-900 rounded-3xl border border-slate-800 overflow-hidden shadow-2xl flex flex-col animate-in fade-in zoom-in duration-200">
+            <!-- Modal Header -->
+            <div class="flex items-center justify-between p-4 border-b border-slate-800 bg-slate-950/80">
+              <div class="flex items-center gap-2">
+                <span
+                  class="text-xs font-bold px-2.5 py-1 rounded-full uppercase tracking-wider"
+                  :class="record.action === 'CHECK_IN' ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'"
+                >
+                  {{ record.action === 'CHECK_IN' ? '📷 Check In Photo' : '🚪 Check Out Photo' }}
+                </span>
+                <span class="text-xs text-slate-300 font-medium">{{ formattedDate }} • {{ formattedTime }}</span>
+              </div>
+
+              <button
+                @click="showPhotoModal = false"
+                class="w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white flex items-center justify-center transition-all cursor-pointer font-bold"
+                title="Close"
+              >
+                ✕
+              </button>
+            </div>
+
+            <!-- Full Resolution Image View -->
+            <div class="p-3 bg-slate-950 flex items-center justify-center max-h-[70vh] overflow-hidden">
+              <img
+                :src="fullPhotoUrl"
+                alt="Full resolution attendance photo"
+                class="max-w-full max-h-[65vh] object-contain rounded-2xl border border-slate-800/80 shadow-2xl"
+              />
+            </div>
+
+            <!-- Footer Info & Actions -->
+            <div class="p-4 bg-slate-900 border-t border-slate-800 flex items-center justify-between gap-3">
+              <a
+                v-if="googleMapsUrl"
+                :href="googleMapsUrl"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="inline-flex items-center gap-1.5 text-xs text-emerald-400 hover:text-emerald-300 font-bold px-3.5 py-2 rounded-xl bg-emerald-500/15 border border-emerald-500/30 hover:bg-emerald-500/25 transition-all shadow-md"
+              >
+                <MapPin class="w-4 h-4 text-emerald-400" />
+                <span>Open Location in Google Maps</span>
+              </a>
+
+              <button
+                @click="showPhotoModal = false"
+                class="py-2 px-5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold rounded-xl border border-slate-700 transition-all cursor-pointer ml-auto"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { ref, computed } from 'vue';
 import { MapPin, ExternalLink } from 'lucide-vue-next';
 import type { AttendanceRecord } from '../types/attendance';
 
 const props = defineProps<{
   record: AttendanceRecord;
 }>();
+
+const showPhotoModal = ref<boolean>(false);
 
 const fullPhotoUrl = computed(() => {
   if (!props.record.photo_url) return '';
@@ -104,3 +175,15 @@ const formattedTime = computed(() => {
   });
 });
 </script>
+
+<style scoped>
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.2s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+</style>
