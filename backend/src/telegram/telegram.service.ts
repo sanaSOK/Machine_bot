@@ -323,12 +323,31 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
    * Process incoming Telegram bot update (e.g. /start command)
    */
   async handleWebhookUpdate(update: any) {
-    if (!update || !update.message) return { status: 'ignored' };
+    if (!update) return { status: 'ignored' };
 
-    const message = update.message;
-    const chatId = message.chat.id;
+    const message = update.message || update.channel_post || update.edited_message;
+    if (!message) return { status: 'ignored' };
+
+    const chatId = message.chat?.id;
+    const chatTitle = message.chat?.title || message.chat?.first_name || 'Group';
+    const threadId = message.message_thread_id;
     const text = message.text || '';
     const frontendUrl = this.getFrontendUrl();
+
+    if (chatId) {
+      this.logger.log(`📩 Chat Event -> Title: "${chatTitle}" | Chat ID: ${chatId} ${threadId ? '| Topic Thread ID: ' + threadId : ''} | Text: "${text}"`);
+    }
+
+    if (text.startsWith('/id')) {
+      let idText = `<b>🆔 Telegram Chat Info</b>\n\n<b>Chat Title:</b> ${chatTitle}\n<b>Chat ID:</b> <code>${chatId}</code>`;
+      if (threadId) {
+        idText += `\n<b>Topic Thread ID:</b> <code>${threadId}</code>\n\n<b>Format for .env:</b> <code>${chatId}:${threadId}</code>`;
+      } else {
+        idText += `\n\n<b>Format for .env:</b> <code>${chatId}</code>`;
+      }
+      await this.sendMessage(chatId, idText);
+      return { status: 'sent_id' };
+    }
 
     if (text.startsWith('/start') || text.toLowerCase().includes('attendance')) {
       const welcomeText = `<b>👋 Welcome to Telegram Attendance System</b>\n\nEmployee identification, check-in, check-out, and camera verification system.\n\nPlease click below to open the attendance mini app:`;

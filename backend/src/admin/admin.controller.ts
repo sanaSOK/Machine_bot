@@ -117,4 +117,16 @@ export class AdminController {
     const buffer = await this.adminService.exportExcel();
     return res.send(buffer);
   }
+
+  @Post('trigger-daily-summary')
+  async triggerDailySummaryPost() {
+    const success = await this.adminService.sendDailySummaryReport();
+    return { success, message: success ? 'Daily Summary Digest sent to Telegram' : 'Failed to send Daily Summary Digest' };
+  }
+
+  @Get('trigger-daily-summary')
+  async triggerDailySummaryGet() {
+    const success = await this.adminService.sendDailySummaryReport();
+    return { success, message: success ? 'Daily Summary Digest sent to Telegram' : 'Failed to send Daily Summary Digest' };
+  }
 }

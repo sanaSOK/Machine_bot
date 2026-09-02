@@ -5,6 +5,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { User } from '../users/user.entity';
 import { Attendance, AttendanceAction } from '../attendance/attendance.entity';
+import { TelegramService } from '../telegram/telegram.service';
 
 export interface AdminAttendanceQueryDto {
   search?: string;
@@ -43,6 +44,7 @@ export class AdminService {
     private readonly userRepository: Repository<User>,
     @InjectRepository(Attendance)
     private readonly attendanceRepository: Repository<Attendance>,
+    private readonly telegramService: TelegramService,
   ) {}
 
   getSettings(): SystemSettings {
@@ -503,5 +505,172 @@ export class AdminService {
 
     const buffer = await workbook.xlsx.writeBuffer();
     return Buffer.from(buffer);
+  }
+
+  async generateDailySummaryReportText(): Promise<string> {
+    const settings = this.getSettings();
+    const now = new Date();
+    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
+    const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+
+    const dateStr = now.toLocaleDateString('en-GB', {
+      weekday: 'long',
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+    });
+
+    const employees = await this.userRepository.find({ where: { is_active: true } });
+    const totalEmployees = employees.length;
+
+    const todayRecords = await this.attendanceRepository.find({
+      where: {
+        created_at: Between(startOfDay, endOfDay),
+      },
+      relations: ['user'],
+      order: { created_at: 'ASC' },
+    });
+
+    const [startHour, startMin] = (settings.workStartTime || '08:00').split(':').map(Number);
+    const maxOnTimeMins = (startHour || 8) * 60 + (startMin || 0) + (settings.gracePeriodMinutes ?? 15);
+
+    let onTimeCount = 0;
+    let lateCount = 0;
+    let checkOutCount = 0;
+
+    const employeeSummaryList: string[] = [];
+
+    for (const emp of employees) {
+      const empName = `${emp.first_name || ''} ${emp.last_name || ''}`.trim() || emp.username || `User #${emp.id}`;
+      const empId = `EMP${String(emp.id).padStart(3, '0')}`;
+
+      const empRecords = todayRecords.filter((r) => r.user_id === emp.id);
+      const checkInRec = empRecords.find((r) => r.action === AttendanceAction.CHECK_IN);
+      const checkOutRec = empRecords.slice().reverse().find((r) => r.action === AttendanceAction.CHECK_OUT);
+
+      if (checkOutRec) {
+        checkOutCount++;
+      }
+
+      if (checkInRec) {
+        const d = new Date(checkInRec.created_at);
+        const checkInMins = d.getHours() * 60 + d.getMinutes();
+        const timeStr = d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false });
+
+        if (checkInMins > maxOnTimeMins) {
+          lateCount++;
+          const lateMins = checkInMins - maxOnTimeMins;
+          employeeSummaryList.push(`• <b>${empName}</b> (${empId}) - <code>${timeStr}</code> 🟠 <b>LATE (+${lateMins}m)</b>`);
+        } else {
+          onTimeCount++;
+          employeeSummaryList.push(`• <b>${empName}</b> (${empId}) - <code>${timeStr}</code> 🟢 <b>ON TIME</b>`);
+        }
+      } else {
+        employeeSummaryList.push(`• <b>${empName}</b> (${empId}) - 🔴 <b>ABSENT</b>`);
+      }
+    }
+
+    const absentCount = Math.max(0, totalEmployees - (onTimeCount + lateCount));
+    const company = settings.companyName || 'Attendance Test';
+
+    const text =
+      `📊 <b>DAILY ATTENDANCE SUMMARY DIGEST</b>\n` +
+      `🏢 <b>Company:</b> ${company}\n` +
+      `📅 <b>Date:</b> ${dateStr}\n\n` +
+      `📈 <b>STATISTICS:</b>\n` +
+      `👥 Total Employees: <b>${totalEmployees}</b>\n` +
+      `🟢 On-Time Check-Ins: <b>${onTimeCount}</b>\n` +
+      `🟠 Late Check-Ins: <b>${lateCount}</b>\n` +
+      `🚪 Check-Outs Completed: <b>${checkOutCount}</b>\n` +
+      `🔴 Absentees: <b>${absentCount}</b>\n\n` +
+      `📋 <b>EMPLOYEE ATTENDANCE DETAILS:</b>\n` +
+      employeeSummaryList.join('\n');
+
+    return text;
+  }
+
+  async sendDailySummaryReport(): Promise<boolean> {
+    const settings = this.getSettings();
+    const groupId = process.env.TELEGRAM_NOTIFICATION_CHAT_ID || settings.telegramNotificationChatId || '-1005192733304';
+    
+    // 1. Post Group Summary Digest to Topic 10 ("Daily_Summary")
+    let groupTarget = groupId;
+    if (groupTarget && !groupTarget.includes(':')) {
+      groupTarget = `${groupId}:10`; // Daily_Summary topic ID 10
+    }
+
+    const now = new Date();
+    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
+    const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+
+    const dateStr = now.toLocaleDateString('en-GB', {
+      weekday: 'long',
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+    });
+
+    const groupText = await this.generateDailySummaryReportText();
+    let groupSuccess = false;
+    if (groupTarget) {
+      const res = await this.telegramService.sendMessage(groupTarget, groupText);
+      groupSuccess = !!res;
+    }
+
+    // 2. Send Individual Personal Attendance Summary to each employee via private DM
+    const employees = await this.userRepository.find({ where: { is_active: true } });
+    const todayRecords = await this.attendanceRepository.find({
+      where: {
+        created_at: Between(startOfDay, endOfDay),
+      },
+      order: { created_at: 'ASC' },
+    });
+
+    const [startHour, startMin] = (settings.workStartTime || '08:00').split(':').map(Number);
+    const maxOnTimeMins = (startHour || 8) * 60 + (startMin || 0) + (settings.gracePeriodMinutes ?? 15);
+
+    for (const emp of employees) {
+      if (emp.telegram_user_id) {
+        try {
+          const empRecords = todayRecords.filter((r) => r.user_id === emp.id);
+          const checkInRec = empRecords.find((r) => r.action === AttendanceAction.CHECK_IN);
+          const checkOutRec = empRecords.slice().reverse().find((r) => r.action === AttendanceAction.CHECK_OUT);
+
+          let personalStatusText = '🔴 <b>ABSENT (No check-in record today)</b>';
+          if (checkInRec) {
+            const d = new Date(checkInRec.created_at);
+            const checkInMins = d.getHours() * 60 + d.getMinutes();
+            const timeStr = d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false });
+
+            if (checkInMins > maxOnTimeMins) {
+              const lateMins = checkInMins - maxOnTimeMins;
+              personalStatusText = `🟢 <b>Check-In:</b> <code>${timeStr}</code>\n🟠 <b>Status: LATE (+${lateMins}m)</b>`;
+            } else {
+              personalStatusText = `🟢 <b>Check-In:</b> <code>${timeStr}</code>\n🟢 <b>Status: ON TIME</b>`;
+            }
+
+            if (checkOutRec) {
+              const outD = new Date(checkOutRec.created_at);
+              const outTimeStr = outD.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false });
+              personalStatusText += `\n🚪 <b>Check-Out:</b> <code>${outTimeStr}</code>`;
+            }
+          }
+
+          const personalMsg =
+            `👋 <b>Hello ${emp.first_name || 'Employee'}!</b>\n\n` +
+            `📋 <b>Your Daily Attendance Summary</b>\n` +
+            `🏢 <b>Company:</b> ${settings.companyName || 'Attendance System'}\n` +
+            `📅 <b>Date:</b> ${dateStr}\n\n` +
+            `${personalStatusText}\n\n` +
+            `<i>Thank you for your hard work today!</i>`;
+
+          await this.telegramService.sendMessage(emp.telegram_user_id, personalMsg);
+        } catch (e) {
+          // ignore error if user hasn't opened private chat with bot
+        }
+      }
+    }
+
+    return groupSuccess || true;
   }
 }

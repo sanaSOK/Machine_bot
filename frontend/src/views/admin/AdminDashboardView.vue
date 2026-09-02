@@ -23,6 +23,16 @@
           <span>Export Excel Report (.xlsx)</span>
         </a>
 
+        <!-- Trigger Daily Telegram Summary Digest -->
+        <button
+          @click="sendDailySummaryNow"
+          :disabled="isSendingSummary"
+          class="px-5 py-3 rounded-2xl bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-700 hover:from-indigo-500 hover:to-purple-500 text-white font-extrabold text-xs shadow-xl transition-all flex items-center gap-2.5 glow-indigo transform active:scale-95 cursor-pointer disabled:opacity-50"
+        >
+          <BarChart3 class="w-4 h-4" />
+          <span>{{ isSendingSummary ? 'Sending...' : 'Send Daily Summary to Telegram' }}</span>
+        </button>
+
         <!-- Refresh Button -->
         <button
           @click="refreshData"
@@ -340,7 +350,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import {
   Users,
   Camera,
@@ -355,6 +365,7 @@ import {
   ExternalLink,
   Download,
   UserX,
+  BarChart3,
 } from 'lucide-vue-next';
 import { useAdminStore } from '../../stores/admin.store';
 import { adminApi } from '../../services/admin.api';
@@ -362,6 +373,23 @@ import PhotoModal from '../../components/admin/PhotoModal.vue';
 import type { AdminAttendanceRecord } from '../../types/admin';
 
 const adminStore = useAdminStore();
+const isSendingSummary = ref(false);
+
+async function sendDailySummaryNow() {
+  isSendingSummary.value = true;
+  try {
+    const res = await adminApi.triggerDailySummary();
+    if (res && res.success) {
+      alert('✅ Daily Attendance Summary Digest posted successfully to Telegram # Daily_Summary topic!');
+    } else {
+      alert('⚠️ Notice: ' + (res?.message || 'Could not post summary digest to Telegram. Check bot configuration.'));
+    }
+  } catch (err: any) {
+    alert('❌ Error sending daily summary: ' + (err.message || err));
+  } finally {
+    isSendingSummary.value = false;
+  }
+}
 
 const currentPage = computed(() => {
   const limit = adminStore.filters?.limit || 20;

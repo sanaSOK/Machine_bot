@@ -62,6 +62,11 @@ export const adminApi = {
     return response.data;
   },
 
+  async triggerDailySummary(): Promise<{ success: boolean; message: string }> {
+    const response = await api.post<{ success: boolean; message: string }>('/admin/trigger-daily-summary');
+    return response.data;
+  },
+
   getExportCsvUrl(): string {
     const getApiBaseUrl = () => {
       if (typeof window !== 'undefined' && window.location && window.location.origin) {
