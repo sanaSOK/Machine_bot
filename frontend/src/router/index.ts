@@ -5,6 +5,7 @@ import HistoryView from '../views/HistoryView.vue';
 import AdminLayout from '../components/admin/AdminLayout.vue';
 import AdminDashboardView from '../views/admin/AdminDashboardView.vue';
 import AdminEmployeesView from '../views/admin/AdminEmployeesView.vue';
+import AdminDepartmentsView from '../views/admin/AdminDepartmentsView.vue';
 import AdminSettingsView from '../views/admin/AdminSettingsView.vue';
 
 const router = createRouter({
@@ -38,6 +39,11 @@ const router = createRouter({
           path: 'employees',
           name: 'admin-employees',
           component: AdminEmployeesView,
+        },
+        {
+          path: 'departments',
+          name: 'admin-departments',
+          component: AdminDepartmentsView,
         },
         {
           path: 'settings',

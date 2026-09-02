@@ -5,6 +5,15 @@ export interface AdminStats {
   todayAbsents?: number;
 }
 
+export interface DepartmentItem {
+  id: string;
+  name: string;
+  description?: string;
+  color?: string;
+  createdAt: string;
+  userCount?: number;
+}
+
 export interface SystemSettings {
   companyName: string;
   logoUrl?: string;
@@ -15,6 +24,7 @@ export interface SystemSettings {
   requireDualPhoto: boolean;
   pageSize: number;
   telegramBotToken?: string;
+  departments?: DepartmentItem[];
 }
 
 export interface AdminUser {
@@ -69,6 +79,8 @@ export interface AdminAttendanceFilter {
 
 export interface AdminEmployeeFilter {
   search: string;
+  department?: string;
+  role?: string;
   limit: number;
   offset: number;
 }

@@ -18,8 +18,19 @@ export interface AdminAttendanceQueryDto {
 
 export interface AdminEmployeeQueryDto {
   search?: string;
+  role?: string;
+  department?: string;
   limit?: number;
   offset?: number;
+}
+
+export interface DepartmentItem {
+  id: string;
+  name: string;
+  description?: string;
+  color?: string;
+  createdAt: string;
+  userCount?: number;
 }
 
 export interface SystemSettings {
@@ -33,6 +44,7 @@ export interface SystemSettings {
   pageSize: number;
   telegramBotToken: string;
   telegramNotificationChatId?: string;
+  departments?: DepartmentItem[];
 }
 
 @Injectable()
@@ -47,6 +59,16 @@ export class AdminService {
     private readonly telegramService: TelegramService,
   ) {}
 
+  private getDefaultDepartments(): DepartmentItem[] {
+    return [
+      { id: 'dept_teacher', name: 'TEACHER', description: 'Academic teaching & instruction staff', color: '#818cf8', createdAt: '2026-08-30T00:00:00.000Z' },
+      { id: 'dept_employee', name: 'EMPLOYEE', description: 'General company employee & operational staff', color: '#38bdf8', createdAt: '2026-08-30T00:00:00.000Z' },
+      { id: 'dept_electrical', name: 'ELECTRICAL', description: 'Electrical engineering & technical maintenance', color: '#f59e0b', createdAt: '2026-08-30T00:00:00.000Z' },
+      { id: 'dept_it', name: 'IT', description: 'Information technology & software engineering', color: '#10b981', createdAt: '2026-08-30T00:00:00.000Z' },
+      { id: 'dept_hr', name: 'HR', description: 'Human resources & administrative operations', color: '#ec4899', createdAt: '2026-08-30T00:00:00.000Z' },
+    ];
+  }
+
   getSettings(): SystemSettings {
     const defaultSettings: SystemSettings = {
       companyName: 'Eroxii Enterprise',
@@ -59,12 +81,16 @@ export class AdminService {
       pageSize: 10,
       telegramBotToken: process.env.TELEGRAM_BOT_TOKEN ? `${process.env.TELEGRAM_BOT_TOKEN.slice(0, 10)}...` : 'Not Configured',
       telegramNotificationChatId: process.env.TELEGRAM_NOTIFICATION_CHAT_ID || '',
+      departments: this.getDefaultDepartments(),
     };
 
     try {
       if (fs.existsSync(this.settingsPath)) {
         const raw = fs.readFileSync(this.settingsPath, 'utf8');
         const parsed = JSON.parse(raw);
+        if (!parsed.departments || !Array.isArray(parsed.departments) || parsed.departments.length === 0) {
+          parsed.departments = this.getDefaultDepartments();
+        }
         return { ...defaultSettings, ...parsed };
       }
     } catch (e) {
@@ -90,12 +116,80 @@ export class AdminService {
     return updated;
   }
 
+  async getDepartments(): Promise<DepartmentItem[]> {
+    const settings = this.getSettings();
+    const depts = settings.departments || this.getDefaultDepartments();
+
+    const users = await this.userRepository.find();
+    return depts.map((d) => {
+      const count = users.filter((u) => (u.role || '').trim().toUpperCase() === d.name.toUpperCase()).length;
+      return { ...d, userCount: count };
+    });
+  }
+
+  async createDepartment(dto: { name: string; description?: string; color?: string }): Promise<DepartmentItem[]> {
+    const cleanName = (dto.name || '').trim().toUpperCase();
+    if (!cleanName) {
+      throw new Error('Department name is required');
+    }
+
+    const settings = this.getSettings();
+    const current = settings.departments || this.getDefaultDepartments();
+
+    if (current.some((d) => d.name.toUpperCase() === cleanName)) {
+      throw new Error(`Department "${cleanName}" already exists`);
+    }
+
+    const colors = ['#6366f1', '#ec4899', '#10b981', '#f59e0b', '#38bdf8', '#8b5cf6', '#ef4444', '#14b8a6'];
+    const randomColor = colors[Math.floor(Math.random() * colors.length)];
+
+    const newDept: DepartmentItem = {
+      id: `dept_${Date.now()}`,
+      name: cleanName,
+      description: (dto.description || '').trim() || `${cleanName} Department`,
+      color: dto.color || randomColor,
+      createdAt: new Date().toISOString(),
+    };
+
+    const updated = [...current, newDept];
+    this.updateSettings({ departments: updated });
+    return this.getDepartments();
+  }
+
+  async deleteDepartment(idOrName: string): Promise<DepartmentItem[]> {
+    const settings = this.getSettings();
+    const current = settings.departments || this.getDefaultDepartments();
+
+    const updated = current.filter(
+      (d) => d.id !== idOrName && d.name.toUpperCase() !== idOrName.trim().toUpperCase(),
+    );
+
+    this.updateSettings({ departments: updated });
+    return this.getDepartments();
+  }
+
   async updateUserRole(userId: number, role: string) {
     const user = await this.userRepository.findOne({ where: { id: userId } });
     if (!user) {
       throw new Error(`User with ID ${userId} not found`);
     }
-    user.role = (role || '').trim().toUpperCase() || 'EMPLOYEE';
+    const cleanRole = (role || '').trim().toUpperCase() || 'EMPLOYEE';
+    user.role = cleanRole;
+
+    // Auto add department if role doesn't exist in settings yet
+    const settings = this.getSettings();
+    const currentDepts = settings.departments || this.getDefaultDepartments();
+    if (!currentDepts.some((d) => d.name.toUpperCase() === cleanRole)) {
+      currentDepts.push({
+        id: `dept_${Date.now()}`,
+        name: cleanRole,
+        description: `${cleanRole} Department`,
+        color: '#6366f1',
+        createdAt: new Date().toISOString(),
+      });
+      this.updateSettings({ departments: currentDepts });
+    }
+
     return this.userRepository.save(user);
   }
 
@@ -225,10 +319,15 @@ export class AdminService {
       .take(limit)
       .skip(offset);
 
+    const targetDept = (query?.department || query?.role || '').trim();
+    if (targetDept) {
+      qb.andWhere('LOWER(user.role) = :targetDept', { targetDept: targetDept.toLowerCase() });
+    }
+
     if (query?.search) {
       const term = `%${query.search.toLowerCase()}%`;
       qb.andWhere(
-        '(LOWER(user.first_name) LIKE :term OR LOWER(user.last_name) LIKE :term OR LOWER(user.username) LIKE :term)',
+        '(LOWER(user.first_name) LIKE :term OR LOWER(user.last_name) LIKE :term OR LOWER(user.username) LIKE :term OR LOWER(user.role) LIKE :term)',
         { term },
       );
     }

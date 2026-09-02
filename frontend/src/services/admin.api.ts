@@ -7,6 +7,7 @@ import type {
   AdminEmployeeFilter,
   AdminEmployeeResponse,
   AdminUser,
+  DepartmentItem,
 } from '../types/admin';
 
 export const adminApi = {
@@ -39,6 +40,21 @@ export const adminApi = {
     return response.data;
   },
 
+  async getDepartments(): Promise<DepartmentItem[]> {
+    const response = await api.get<DepartmentItem[]>('/admin/departments');
+    return response.data;
+  },
+
+  async createDepartment(dto: { name: string; description?: string; color?: string }): Promise<DepartmentItem[]> {
+    const response = await api.post<DepartmentItem[]>('/admin/departments', dto);
+    return response.data;
+  },
+
+  async deleteDepartment(id: string): Promise<DepartmentItem[]> {
+    const response = await api.delete<DepartmentItem[]>(`/admin/departments/${id}`);
+    return response.data;
+  },
+
   async getAttendanceLogs(filter: Partial<AdminAttendanceFilter>): Promise<AdminAttendanceResponse> {
     const params = new URLSearchParams();
     if (filter.search) params.append('search', filter.search);
@@ -55,6 +71,8 @@ export const adminApi = {
   async getEmployees(filter?: Partial<AdminEmployeeFilter>): Promise<AdminEmployeeResponse> {
     const params = new URLSearchParams();
     if (filter?.search) params.append('search', filter.search);
+    if (filter?.department) params.append('department', filter.department);
+    if (filter?.role) params.append('role', filter.role);
     if (filter?.limit) params.append('limit', String(filter.limit));
     if (filter?.offset) params.append('offset', String(filter.offset));
 

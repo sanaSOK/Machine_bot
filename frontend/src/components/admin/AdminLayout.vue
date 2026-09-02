@@ -85,6 +85,23 @@
             </span>
           </router-link>
 
+          <!-- Departments -->
+          <router-link
+            to="/admin/departments"
+            exact-active-class="nav-item-active"
+            :class="[
+              isSidebarCollapsed ? 'w-11 h-11 justify-center mx-auto' : 'w-full px-3.5 py-3',
+              'flex items-center gap-3 rounded-xl text-xs font-bold text-slate-400 hover:text-slate-100 hover:bg-slate-800/60 border border-transparent transition-all duration-200 group relative cursor-pointer'
+            ]"
+            :title="isSidebarCollapsed ? 'Departments' : ''"
+          >
+            <Building2 class="w-5 h-5 shrink-0 transition-transform group-hover:scale-105" />
+            <span v-if="!isSidebarCollapsed" class="whitespace-nowrap">Departments</span>
+            <span v-if="!isSidebarCollapsed && adminStore.departments.length > 0" class="ml-auto text-[9px] font-extrabold px-2 py-0.5 rounded-full bg-cyan-500/15 text-cyan-300 border border-cyan-500/30 shadow-sm">
+              {{ adminStore.departments.length }}
+            </span>
+          </router-link>
+
           <!-- Admin Settings -->
           <router-link
             to="/admin/settings"
@@ -188,6 +205,16 @@
           </router-link>
 
           <router-link
+            to="/admin/departments"
+            @click="isMobileDrawerOpen = false"
+            exact-active-class="nav-item-active"
+            class="flex items-center gap-3 px-3.5 py-3 rounded-xl text-xs font-bold text-slate-400 hover:text-slate-100 hover:bg-slate-800/60 border border-transparent transition-all relative"
+          >
+            <Building2 class="w-5 h-5 shrink-0" />
+            <span>Departments</span>
+          </router-link>
+
+          <router-link
             to="/admin/settings"
             @click="isMobileDrawerOpen = false"
             exact-active-class="nav-item-active"
@@ -270,6 +297,7 @@ import { useRouter } from 'vue-router';
 import {
   LayoutDashboard,
   Users,
+  Building2,
   Settings,
   Smartphone,
   ShieldCheck,
@@ -287,6 +315,7 @@ const isMobileDrawerOpen = ref(false);
 
 onMounted(() => {
   adminStore.fetchStats();
+  adminStore.fetchDepartments();
 });
 </script>
 

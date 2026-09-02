@@ -164,7 +164,6 @@ export class AttendanceService {
 
     const settings = this.adminService.getSettings();
     const now = new Date(attendance.created_at);
-    const finalTimeStr = now.toLocaleTimeString('en-GB', { hour12: false });
 
     const [startHour, startMin] = (settings.workStartTime || '08:00').split(':').map(Number);
     const workStartMins = (startHour || 8) * 60 + (startMin || 0);
@@ -177,34 +176,28 @@ export class AttendanceService {
     if (checkInMins > maxOnTimeMins) {
       const lateMins = checkInMins - maxOnTimeMins;
       status = 'LATE';
-      lateText = `📍 <b>Late: ${lateMins} min</b>\n`;
+      lateText = `- <b>Late: ${lateMins} min</b>\n`;
     }
 
     const fullName = `${user.first_name || ''} ${user.last_name || ''}`.trim() || 'Employee';
     const empId = `EMP${String(user.id).padStart(3, '0')}`;
     const department = user.role || 'Electrical';
 
-    let gpsText = '📍 <b>GPS:</b> N/A\n';
     let mapsText = '';
     if (attendance.latitude != null && attendance.longitude != null) {
       const lat = Number(attendance.latitude);
       const lng = Number(attendance.longitude);
-      gpsText = `📍 <b>GPS: ${lat.toFixed(6)}, ${lng.toFixed(6)}</b>\n`;
-      mapsText = `🗺️ <b>Google Maps:</b> https://www.google.com/maps?q=${lat},${lng}\n`;
+      mapsText = `- <b>Google Maps:</b> https://www.google.com/maps?q=${lat},${lng}\n`;
     }
 
     const caption =
       `⚠️ <b>ATTENDANCE ALERT</b>\n\n` +
       `✅ <b>CHECK IN SUCCESS</b>\n\n` +
-      `👤 <b>${fullName}</b>\n` +
-      `🆔 <b>${empId}</b>\n` +
-      `🏢 <b>${department}</b>\n` +
-      `📋 <b>Status: ${status}</b>\n` +
-      `📷 <b>Rear: ${finalTimeStr}</b>\n` +
-      `🤳 <b>Selfie: ${finalTimeStr}</b>\n` +
-      `⏱️ <b>Final: ${finalTimeStr}</b>\n` +
+      `- <b>${fullName}</b>\n` +
+      `- <b>${empId}</b>\n` +
+      `- <b>${department}</b>\n` +
+      `- <b>Status: ${status}</b>\n` +
       lateText +
-      gpsText +
       mapsText;
 
     // Send photo directly to Telegram user chat
@@ -225,33 +218,25 @@ export class AttendanceService {
     attendance: Attendance,
   ) {
     const settings = this.adminService.getSettings();
-    const now = new Date(attendance.created_at);
-    const finalTimeStr = now.toLocaleTimeString('en-GB', { hour12: false });
 
     const fullName = `${user.first_name || ''} ${user.last_name || ''}`.trim() || 'Employee';
     const empId = `EMP${String(user.id).padStart(3, '0')}`;
     const department = user.role || 'Electrical';
 
-    let gpsText = '📍 <b>GPS:</b> N/A\n';
     let mapsText = '';
     if (attendance.latitude != null && attendance.longitude != null) {
       const lat = Number(attendance.latitude);
       const lng = Number(attendance.longitude);
-      gpsText = `📍 <b>GPS: ${lat.toFixed(6)}, ${lng.toFixed(6)}</b>\n`;
-      mapsText = `🗺️ <b>Google Maps:</b> https://www.google.com/maps?q=${lat},${lng}\n`;
+      mapsText = `- <b>Google Maps:</b> https://www.google.com/maps?q=${lat},${lng}\n`;
     }
 
     const caption =
       `⚠️ <b>ATTENDANCE ALERT</b>\n\n` +
       `🚪 <b>CHECK OUT SUCCESS</b>\n\n` +
-      `👤 <b>${fullName}</b>\n` +
-      `🆔 <b>${empId}</b>\n` +
-      `🏢 <b>${department}</b>\n` +
-      `📋 <b>Status: CHECK OUT</b>\n` +
-      `📷 <b>Rear: ${finalTimeStr}</b>\n` +
-      `🤳 <b>Selfie: ${finalTimeStr}</b>\n` +
-      `⏱️ <b>Final: ${finalTimeStr}</b>\n` +
-      gpsText +
+      `- <b>${fullName}</b>\n` +
+      `- <b>${empId}</b>\n` +
+      `- <b>${department}</b>\n` +
+      `- <b>Status: CHECK OUT</b>\n` +
       mapsText;
 
     // Send photo directly to Telegram user chat

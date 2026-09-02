@@ -37,22 +37,58 @@
       <button @click="adminStore.error = null" class="text-xs text-red-400 hover:text-red-300 font-bold">Dismiss</button>
     </div>
 
-    <!-- Search Controls Bar -->
-    <div class="glass-panel p-5 rounded-3xl border border-slate-800/80 shadow-xl flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
-      <div class="relative flex-1 max-w-md">
-        <Search class="w-4 h-4 text-slate-400 absolute left-4 top-3.5" />
-        <input
-          v-model="adminStore.employeeFilters.search"
-          @input="onSearchInput"
-          type="text"
-          placeholder="Search user name / username..."
-          class="w-full pl-11 pr-4 py-3 rounded-2xl bg-slate-950 border border-slate-800 text-xs font-semibold text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500/80 focus:ring-2 focus:ring-indigo-500/20 transition-all"
-        />
+    <!-- Search & Department Filter Controls Bar -->
+    <div class="glass-panel p-5 rounded-3xl border border-slate-800/80 shadow-xl flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
+      <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 flex-1">
+        <!-- Search Input -->
+        <div class="relative flex-1 max-w-md">
+          <Search class="w-4 h-4 text-slate-400 absolute left-4 top-3.5" />
+          <input
+            v-model="adminStore.employeeFilters.search"
+            @input="onSearchInput"
+            type="text"
+            placeholder="Search user name / username..."
+            class="w-full pl-11 pr-4 py-3 rounded-2xl bg-slate-950 border border-slate-800 text-xs font-semibold text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500/80 focus:ring-2 focus:ring-indigo-500/20 transition-all"
+          />
+        </div>
+
+        <!-- Department Filter Dropdown -->
+        <div class="relative w-full sm:w-56">
+          <div class="absolute left-3.5 top-1/2 -translate-y-1/2 flex items-center pointer-events-none">
+            <Building2 class="w-4 h-4 text-indigo-400" />
+          </div>
+          <select
+            :value="adminStore.employeeFilters.department || ''"
+            @change="onDepartmentFilterChange(($event.target as HTMLSelectElement).value)"
+            class="w-full pl-10 pr-8 py-3 rounded-2xl bg-slate-950 border border-slate-800 text-xs font-bold text-slate-200 focus:outline-none focus:border-indigo-500/80 focus:ring-2 focus:ring-indigo-500/20 transition-all appearance-none cursor-pointer"
+          >
+            <option value="">All Departments</option>
+            <option
+              v-for="dept in adminStore.departments"
+              :key="dept.id"
+              :value="dept.name"
+              class="bg-slate-900 text-white font-bold"
+            >
+              {{ dept.name }} ({{ dept.userCount || 0 }})
+            </option>
+          </select>
+          <ChevronDown class="w-4 h-4 text-slate-400 pointer-events-none absolute right-3 top-1/2 -translate-y-1/2" />
+        </div>
       </div>
 
-      <div class="text-xs font-bold text-slate-400 flex items-center gap-2">
-        <Edit3 class="w-3.5 h-3.5 text-indigo-400" />
-        <span>Click any role field to type custom characters (Press Enter or click outside to save)</span>
+      <!-- Active Department Filter Pill Badge -->
+      <div v-if="adminStore.employeeFilters.department" class="flex items-center gap-2 shrink-0">
+        <span class="inline-flex items-center gap-2 px-3.5 py-2 rounded-2xl bg-indigo-500/15 text-indigo-300 border border-indigo-500/30 text-xs font-extrabold shadow-sm">
+          <Building2 class="w-4 h-4 text-indigo-400" />
+          <span>Department: {{ adminStore.employeeFilters.department }}</span>
+          <button
+            @click="clearDepartmentFilter"
+            class="hover:text-white p-0.5 ml-1 rounded-lg hover:bg-indigo-500/30 transition-colors cursor-pointer"
+            title="Clear Department Filter"
+          >
+            <X class="w-3.5 h-3.5" />
+          </button>
+        </span>
       </div>
     </div>
 
@@ -132,24 +168,32 @@
                 {{ user.telegram_user_id }}
               </td>
 
-              <!-- Custom Text Input Role Field with Ellipsis Truncation -->
+              <!-- Role / Department Selector -->
               <td class="py-4.5 px-6">
-                <div class="relative inline-flex items-center group max-w-[150px]">
-                  <input
-                    type="text"
+                <div class="relative inline-flex items-center group min-w-[140px] max-w-[180px]">
+                  <select
                     :value="editingRoles[user.id] !== undefined ? editingRoles[user.id] : (user.role || 'EMPLOYEE')"
-                    @input="editingRoles[user.id] = ($event.target as HTMLInputElement).value"
-                    @keyup.enter="saveUserRole(user)"
-                    @blur="saveUserRole(user)"
+                    @change="onRoleSelectChange(user, ($event.target as HTMLSelectElement).value)"
                     :disabled="updatingUserId === user.id"
-                    placeholder="Type role..."
-                    :title="editingRoles[user.id] !== undefined ? editingRoles[user.id] : (user.role || 'EMPLOYEE')"
-                    class="pl-3.5 pr-8 py-1.5 rounded-xl text-[11px] font-extrabold tracking-wider uppercase border shadow-inner transition-all focus:outline-none focus:ring-2 focus:ring-indigo-500/40 disabled:opacity-50 w-full truncate"
-                    :class="user.role === 'ADMIN'
-                      ? 'bg-purple-500/20 text-purple-200 border-purple-500/40 focus:border-purple-400'
-                      : 'bg-slate-950 text-indigo-200 border-slate-700 focus:border-indigo-500'"
-                  />
-                  <Edit3 class="w-3.5 h-3.5 text-slate-500 group-hover:text-indigo-400 transition-colors pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 shrink-0" />
+                    class="pl-3 pr-7 py-1.5 rounded-xl text-[11px] font-extrabold tracking-wider uppercase border shadow-inner transition-all focus:outline-none focus:ring-2 focus:ring-indigo-500/40 disabled:opacity-50 w-full appearance-none bg-slate-950 text-indigo-200 border-slate-700 focus:border-indigo-500 cursor-pointer"
+                  >
+                    <option
+                      v-for="dept in adminStore.departments"
+                      :key="dept.id"
+                      :value="dept.name"
+                      class="bg-slate-900 text-white font-bold"
+                    >
+                      {{ dept.name }}
+                    </option>
+                    <option
+                      v-if="user.role && !adminStore.departments.some(d => d.name.toUpperCase() === user.role.toUpperCase())"
+                      :value="user.role"
+                      class="bg-slate-900 text-indigo-300 font-bold"
+                    >
+                      {{ user.role }}
+                    </option>
+                  </select>
+                  <ChevronDown class="w-3.5 h-3.5 text-slate-400 group-hover:text-indigo-400 transition-colors pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 shrink-0" />
                 </div>
               </td>
 
@@ -207,12 +251,16 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
-import { RefreshCw, Loader2, Users, Search, Edit3, CheckCircle2, AlertCircle } from 'lucide-vue-next';
+import { ref, computed, onMounted, watch } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
+import { RefreshCw, Loader2, Users, Building2, Search, CheckCircle2, AlertCircle, ChevronDown, X } from 'lucide-vue-next';
 import { useAdminStore } from '../../stores/admin.store';
 import type { AdminUser } from '../../types/admin';
 
+const route = useRoute();
+const router = useRouter();
 const adminStore = useAdminStore();
+
 const updatingUserId = ref<number | null>(null);
 const editingRoles = ref<Record<number, string>>({});
 
@@ -231,19 +279,40 @@ function onSearchInput() {
   }, 350);
 }
 
-async function saveUserRole(user: AdminUser) {
-  const newRole = editingRoles.value[user.id];
-  if (newRole === undefined) return;
-  const trimmed = newRole.trim().toUpperCase();
-  if (trimmed === (user.role || '').toUpperCase()) {
-    delete editingRoles.value[user.id];
-    return;
-  }
+function onDepartmentFilterChange(deptName: string) {
+  adminStore.employeeFilters.department = deptName || '';
+  adminStore.employeeFilters.offset = 0;
+  adminStore.fetchEmployees();
 
+  if (deptName) {
+    router.replace({ query: { ...route.query, department: deptName } });
+  } else {
+    const { department, ...queryWithoutDept } = route.query;
+    router.replace({ query: queryWithoutDept });
+  }
+}
+
+function clearDepartmentFilter() {
+  onDepartmentFilterChange('');
+}
+
+watch(
+  () => route.query.department,
+  (newDept) => {
+    const deptStr = (newDept as string) || '';
+    adminStore.employeeFilters.department = deptStr;
+    adminStore.employeeFilters.offset = 0;
+    adminStore.fetchEmployees();
+  },
+  { immediate: true },
+);
+
+async function onRoleSelectChange(user: AdminUser, newRole: string) {
+  if (!newRole || newRole.trim().toUpperCase() === (user.role || '').toUpperCase()) return;
   updatingUserId.value = user.id;
-  const ok = await adminStore.updateUserRole(user.id, trimmed);
+  const ok = await adminStore.updateUserRole(user.id, newRole.trim().toUpperCase());
   if (ok) {
-    delete editingRoles.value[user.id];
+    adminStore.fetchDepartments();
   }
   updatingUserId.value = null;
 }
@@ -296,5 +365,6 @@ function formatDate(dateStr: string): string {
 onMounted(() => {
   adminStore.fetchSettings();
   adminStore.fetchEmployees();
+  adminStore.fetchDepartments();
 });
 </script>

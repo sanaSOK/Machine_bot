@@ -3,6 +3,7 @@ import {
   Get,
   Post,
   Patch,
+  Delete,
   Param,
   Body,
   Query,
@@ -35,6 +36,21 @@ export class AdminController {
   @Post('settings')
   async updateSettings(@Body() dto: Partial<SystemSettings>) {
     return this.adminService.updateSettings(dto);
+  }
+
+  @Get('departments')
+  async getDepartments() {
+    return this.adminService.getDepartments();
+  }
+
+  @Post('departments')
+  async createDepartment(@Body() dto: { name: string; description?: string; color?: string }) {
+    return this.adminService.createDepartment(dto);
+  }
+
+  @Delete('departments/:id')
+  async deleteDepartment(@Param('id') id: string) {
+    return this.adminService.deleteDepartment(id);
   }
 
   @Patch('users/:id/role')
@@ -100,11 +116,15 @@ export class AdminController {
   @Get('employees')
   async getEmployees(
     @Query('search') search?: string,
+    @Query('department') department?: string,
+    @Query('role') role?: string,
     @Query('limit') limit?: string,
     @Query('offset') offset?: string,
   ) {
     return this.adminService.getEmployees({
       search,
+      department,
+      role,
       limit: limit ? parseInt(limit, 10) : 10,
       offset: offset ? parseInt(offset, 10) : 0,
     });

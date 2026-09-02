@@ -8,6 +8,7 @@ import type {
   AdminAttendanceFilter,
   AdminEmployeeFilter,
   SystemSettings,
+  DepartmentItem,
 } from '../types/admin';
 
 export const useAdminStore = defineStore('admin', () => {
@@ -32,6 +33,7 @@ export const useAdminStore = defineStore('admin', () => {
   const totalLogs = ref<number>(0);
   const employees = ref<AdminUser[]>([]);
   const totalEmployeeRecords = ref<number>(0);
+  const departments = ref<DepartmentItem[]>([]);
 
   const isLoadingStats = ref<boolean>(false);
   const isLoadingSettings = ref<boolean>(false);
@@ -39,6 +41,8 @@ export const useAdminStore = defineStore('admin', () => {
   const isUploadingLogo = ref<boolean>(false);
   const isLoadingEmployees = ref<boolean>(false);
   const isLoadingLogs = ref<boolean>(false);
+  const isLoadingDepartments = ref<boolean>(false);
+  const isCreatingDepartment = ref<boolean>(false);
   const error = ref<string | null>(null);
   const successMessage = ref<string | null>(null);
 
@@ -237,6 +241,59 @@ export const useAdminStore = defineStore('admin', () => {
     fetchEmployees();
   }
 
+  async function fetchDepartments() {
+    isLoadingDepartments.value = true;
+    error.value = null;
+    try {
+      const res = await adminApi.getDepartments();
+      if (Array.isArray(res)) {
+        departments.value = res;
+      }
+    } catch (err: any) {
+      console.warn('Failed to fetch departments:', err);
+      error.value = err.message || 'Failed to fetch departments';
+    } finally {
+      isLoadingDepartments.value = false;
+    }
+  }
+
+  async function createDepartment(dto: { name: string; description?: string; color?: string }): Promise<boolean> {
+    isCreatingDepartment.value = true;
+    error.value = null;
+    successMessage.value = null;
+    try {
+      const res = await adminApi.createDepartment(dto);
+      if (Array.isArray(res)) {
+        departments.value = res;
+        successMessage.value = `Department "${dto.name.toUpperCase()}" created successfully!`;
+        return true;
+      }
+      return false;
+    } catch (err: any) {
+      error.value = err.message || 'Failed to create department';
+      return false;
+    } finally {
+      isCreatingDepartment.value = false;
+    }
+  }
+
+  async function deleteDepartment(id: string): Promise<boolean> {
+    error.value = null;
+    successMessage.value = null;
+    try {
+      const res = await adminApi.deleteDepartment(id);
+      if (Array.isArray(res)) {
+        departments.value = res;
+        successMessage.value = 'Department removed successfully!';
+        return true;
+      }
+      return false;
+    } catch (err: any) {
+      error.value = err.message || 'Failed to delete department';
+      return false;
+    }
+  }
+
   return {
     stats,
     settings,
@@ -244,12 +301,15 @@ export const useAdminStore = defineStore('admin', () => {
     totalLogs,
     employees,
     totalEmployeeRecords,
+    departments,
     isLoadingStats,
     isLoadingSettings,
     isSavingSettings,
     isUploadingLogo,
     isLoadingLogs,
     isLoadingEmployees,
+    isLoadingDepartments,
+    isCreatingDepartment,
     error,
     successMessage,
     filters,
@@ -263,6 +323,9 @@ export const useAdminStore = defineStore('admin', () => {
     updateUserRole,
     fetchAttendanceLogs,
     fetchEmployees,
+    fetchDepartments,
+    createDepartment,
+    deleteDepartment,
     openPhotoModal,
     closePhotoModal,
     resetFilters,
