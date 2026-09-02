@@ -239,6 +239,51 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
   }
 
   /**
+   * Send photo with HTML formatted caption to Telegram user / admin group via Telegram Bot API
+   */
+  async sendAttendancePhotoNotification(
+    chatId: string | number,
+    filePath: string,
+    caption: string,
+  ): Promise<any> {
+    const botToken = this.configService.get<string>('TELEGRAM_BOT_TOKEN');
+    if (!botToken) return null;
+
+    try {
+      if (!fs.existsSync(filePath)) {
+        this.logger.warn(`Photo file not found on disk: ${filePath}`);
+        return null;
+      }
+
+      const fileBuffer = fs.readFileSync(filePath);
+      const fileBlob = new Blob([fileBuffer], { type: 'image/jpeg' });
+      const filename = path.basename(filePath);
+
+      const formData = new FormData();
+      formData.append('chat_id', String(chatId));
+      formData.append('photo', fileBlob, filename);
+      formData.append('caption', caption);
+      formData.append('parse_mode', 'HTML');
+
+      const response = await fetch(`https://api.telegram.org/bot${botToken}/sendPhoto`, {
+        method: 'POST',
+        body: formData,
+      });
+
+      const result = (await response.json()) as any;
+      if (!result.ok) {
+        this.logger.warn(`Telegram sendPhoto warning for chatId ${chatId}: ${result.description || JSON.stringify(result)}`);
+      } else {
+        this.logger.log(`📸 Successfully sent Telegram attendance photo to chatId ${chatId}`);
+      }
+      return result;
+    } catch (error: any) {
+      this.logger.error(`❌ Failed to send photo notification: ${error.message}`);
+      return null;
+    }
+  }
+
+  /**
    * Process incoming Telegram bot update (e.g. /start command)
    */
   async handleWebhookUpdate(update: any) {

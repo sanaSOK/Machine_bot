@@ -30,6 +30,7 @@ export interface SystemSettings {
   requireDualPhoto: boolean;
   pageSize: number;
   telegramBotToken: string;
+  telegramNotificationChatId?: string;
 }
 
 @Injectable()
@@ -54,6 +55,7 @@ export class AdminService {
       requireDualPhoto: true,
       pageSize: 10,
       telegramBotToken: process.env.TELEGRAM_BOT_TOKEN ? `${process.env.TELEGRAM_BOT_TOKEN.slice(0, 10)}...` : 'Not Configured',
+      telegramNotificationChatId: process.env.TELEGRAM_NOTIFICATION_CHAT_ID || '',
     };
 
     try {
