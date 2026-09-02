@@ -284,6 +284,42 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
   }
 
   /**
+   * Fetch Telegram user profile photo direct CDN URL using Telegram Bot API
+   */
+  async getUserProfilePhotoUrl(telegramUserId: string | number): Promise<string | null> {
+    const botToken = this.configService.get<string>('TELEGRAM_BOT_TOKEN');
+    if (!botToken || !telegramUserId) return null;
+
+    try {
+      // 1. Fetch user profile photos list
+      const res1 = await fetch(
+        `https://api.telegram.org/bot${botToken}/getUserProfilePhotos?user_id=${telegramUserId}&limit=1`,
+      );
+      const data1 = (await res1.json()) as any;
+      if (!data1.ok || !data1.result?.photos?.[0]?.[0]?.file_id) {
+        return null;
+      }
+
+      const fileId = data1.result.photos[0][0].file_id;
+
+      // 2. Fetch file path from file_id
+      const res2 = await fetch(`https://api.telegram.org/bot${botToken}/getFile?file_id=${fileId}`);
+      const data2 = (await res2.json()) as any;
+      if (!data2.ok || !data2.result?.file_path) {
+        return null;
+      }
+
+      const filePath = data2.result.file_path;
+
+      // 3. Return full public Telegram CDN photo URL
+      return `https://api.telegram.org/file/bot${botToken}/${filePath}`;
+    } catch (e) {
+      this.logger.warn(`Failed to fetch user profile photo for ${telegramUserId}: ${e}`);
+      return null;
+    }
+  }
+
+  /**
    * Process incoming Telegram bot update (e.g. /start command)
    */
   async handleWebhookUpdate(update: any) {

@@ -103,7 +103,17 @@
               <!-- User Info -->
               <td class="py-4.5 px-6">
                 <div class="flex items-center gap-3.5">
-                  <div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-indigo-600 via-purple-600 to-indigo-500 border border-indigo-400/30 flex items-center justify-center text-white font-extrabold text-sm shrink-0 shadow-md">
+                  <img
+                    v-if="user.photo_url"
+                    :src="user.photo_url"
+                    :alt="user.first_name"
+                    class="w-10 h-10 rounded-2xl object-cover border border-indigo-400/30 shrink-0 shadow-md"
+                    @error="user.photo_url = ''"
+                  />
+                  <div
+                    v-else
+                    class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-indigo-600 via-purple-600 to-indigo-500 border border-indigo-400/30 flex items-center justify-center text-white font-extrabold text-sm shrink-0 shadow-md"
+                  >
                     {{ user.first_name?.charAt(0) || 'U' }}
                   </div>
                   <div>
