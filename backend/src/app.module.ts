@@ -12,6 +12,8 @@ import { UsersModule } from './users/users.module';
 import { AttendanceModule } from './attendance/attendance.module';
 import { TelegramModule } from './telegram/telegram.module';
 import { AdminModule } from './admin/admin.module';
+import { SuperAdminModule } from './super-admin/super-admin.module';
+import { AppController } from './app.controller';
 
 @Module({
   imports: [
@@ -49,6 +51,8 @@ import { AdminModule } from './admin/admin.module';
     AttendanceModule,
     TelegramModule,
     AdminModule,
+    SuperAdminModule,
   ],
+  controllers: [AppController],
 })
 export class AppModule {}

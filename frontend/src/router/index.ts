@@ -8,6 +8,10 @@ import AdminEmployeesView from '../views/admin/AdminEmployeesView.vue';
 import AdminDepartmentsView from '../views/admin/AdminDepartmentsView.vue';
 import AdminSettingsView from '../views/admin/AdminSettingsView.vue';
 
+import SuperAdminLayout from '../components/super-admin/SuperAdminLayout.vue';
+import SuperAdminDashboardView from '../views/super-admin/SuperAdminDashboardView.vue';
+import SuperAdminOrgsView from '../views/super-admin/SuperAdminOrgsView.vue';
+
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
@@ -53,8 +57,29 @@ const router = createRouter({
       ],
     },
     {
+      path: '/super-admin',
+      component: SuperAdminLayout,
+      children: [
+        {
+          path: '',
+          name: 'super-admin-dashboard',
+          component: SuperAdminDashboardView,
+        },
+        {
+          path: 'admins',
+          name: 'super-admin-orgs',
+          component: SuperAdminOrgsView,
+        },
+      ],
+    },
+    {
       path: '/:pathMatch(.*)*',
-      redirect: '/',
+      redirect: () => {
+        if (typeof window !== 'undefined' && window.location && window.location.port === '3333') {
+          return '/super-admin';
+        }
+        return '/';
+      },
     },
   ],
 });
