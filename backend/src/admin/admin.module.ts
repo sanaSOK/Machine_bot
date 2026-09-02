@@ -5,10 +5,11 @@ import { AdminService } from './admin.service';
 import { DailySummaryScheduler } from './daily-summary.scheduler';
 import { User } from '../users/user.entity';
 import { Attendance } from '../attendance/attendance.entity';
+import { Department } from './department.entity';
 import { TelegramModule } from '../telegram/telegram.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([User, Attendance]), TelegramModule],
+  imports: [TypeOrmModule.forFeature([User, Attendance, Department]), TelegramModule],
   controllers: [AdminController],
   providers: [AdminService, DailySummaryScheduler],
   exports: [AdminService],

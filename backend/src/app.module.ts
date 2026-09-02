@@ -7,6 +7,7 @@ import * as path from 'path';
 
 import { User } from './users/user.entity';
 import { Attendance } from './attendance/attendance.entity';
+import { Department } from './admin/department.entity';
 import { AdminOrganization } from './super-admin/admin-organization.entity';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
@@ -31,7 +32,7 @@ import { AppController } from './app.controller';
         username: configService.get<string>('DB_USERNAME') || 'root',
         password: configService.get<string>('DB_PASSWORD') || '1234',
         database: 'telegram_app',
-        entities: [User, Attendance],
+        entities: [User, Attendance, Department],
         synchronize: true,
         logging: false,
       }),

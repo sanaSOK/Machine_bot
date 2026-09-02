@@ -1,10 +1,11 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, OnModuleInit } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between } from 'typeorm';
 import * as fs from 'fs';
 import * as path from 'path';
 import { User } from '../users/user.entity';
 import { Attendance, AttendanceAction } from '../attendance/attendance.entity';
+import { Department } from './department.entity';
 import { TelegramService } from '../telegram/telegram.service';
 
 export interface AdminAttendanceQueryDto {
@@ -48,16 +49,22 @@ export interface SystemSettings {
 }
 
 @Injectable()
-export class AdminService {
+export class AdminService implements OnModuleInit {
   private readonly settingsPath = path.join(process.cwd(), 'uploads', 'system_settings.json');
 
   constructor(
+    @InjectRepository(Department)
+    private readonly departmentRepository: Repository<Department>,
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
     @InjectRepository(Attendance)
     private readonly attendanceRepository: Repository<Attendance>,
     private readonly telegramService: TelegramService,
   ) {}
+
+  async onModuleInit() {
+    await this.seedDefaultDepartments();
+  }
 
   private getDefaultDepartments(): DepartmentItem[] {
     return [
@@ -67,6 +74,25 @@ export class AdminService {
       { id: 'dept_it', name: 'IT', description: 'Information technology & software engineering', color: '#10b981', createdAt: '2026-08-30T00:00:00.000Z' },
       { id: 'dept_hr', name: 'HR', description: 'Human resources & administrative operations', color: '#ec4899', createdAt: '2026-08-30T00:00:00.000Z' },
     ];
+  }
+
+  private async seedDefaultDepartments() {
+    try {
+      const count = await this.departmentRepository.count();
+      if (count === 0) {
+        const defaults = this.getDefaultDepartments();
+        for (const d of defaults) {
+          const entity = this.departmentRepository.create({
+            name: d.name,
+            description: d.description,
+            color: d.color,
+          });
+          await this.departmentRepository.save(entity);
+        }
+      }
+    } catch (e) {
+      console.warn('Seed default departments error:', e);
+    }
   }
 
   getSettings(): SystemSettings {
@@ -117,13 +143,20 @@ export class AdminService {
   }
 
   async getDepartments(): Promise<DepartmentItem[]> {
-    const settings = this.getSettings();
-    const depts = settings.departments || this.getDefaultDepartments();
-
+    await this.seedDefaultDepartments();
+    const depts = await this.departmentRepository.find({ order: { id: 'ASC' } });
     const users = await this.userRepository.find();
+
     return depts.map((d) => {
       const count = users.filter((u) => (u.role || '').trim().toUpperCase() === d.name.toUpperCase()).length;
-      return { ...d, userCount: count };
+      return {
+        id: String(d.id),
+        name: d.name,
+        description: d.description || `${d.name} Department`,
+        color: d.color || '#6366f1',
+        createdAt: d.createdAt ? d.createdAt.toISOString() : new Date().toISOString(),
+        userCount: count,
+      };
     });
   }
 
@@ -133,38 +166,35 @@ export class AdminService {
       throw new Error('Department name is required');
     }
 
-    const settings = this.getSettings();
-    const current = settings.departments || this.getDefaultDepartments();
-
-    if (current.some((d) => d.name.toUpperCase() === cleanName)) {
+    await this.seedDefaultDepartments();
+    const existing = await this.departmentRepository.findOne({ where: { name: cleanName } });
+    if (existing) {
       throw new Error(`Department "${cleanName}" already exists`);
     }
 
     const colors = ['#6366f1', '#ec4899', '#10b981', '#f59e0b', '#38bdf8', '#8b5cf6', '#ef4444', '#14b8a6'];
     const randomColor = colors[Math.floor(Math.random() * colors.length)];
 
-    const newDept: DepartmentItem = {
-      id: `dept_${Date.now()}`,
+    const newDept = this.departmentRepository.create({
       name: cleanName,
       description: (dto.description || '').trim() || `${cleanName} Department`,
       color: dto.color || randomColor,
-      createdAt: new Date().toISOString(),
-    };
+    });
 
-    const updated = [...current, newDept];
-    this.updateSettings({ departments: updated });
+    await this.departmentRepository.save(newDept);
     return this.getDepartments();
   }
 
   async deleteDepartment(idOrName: string): Promise<DepartmentItem[]> {
-    const settings = this.getSettings();
-    const current = settings.departments || this.getDefaultDepartments();
+    const clean = idOrName.trim().toUpperCase();
+    const numericId = parseInt(idOrName, 10);
 
-    const updated = current.filter(
-      (d) => d.id !== idOrName && d.name.toUpperCase() !== idOrName.trim().toUpperCase(),
-    );
+    if (!isNaN(numericId)) {
+      await this.departmentRepository.delete({ id: numericId });
+    } else {
+      await this.departmentRepository.delete({ name: clean });
+    }
 
-    this.updateSettings({ departments: updated });
     return this.getDepartments();
   }
 
@@ -176,18 +206,15 @@ export class AdminService {
     const cleanRole = (role || '').trim().toUpperCase() || 'EMPLOYEE';
     user.role = cleanRole;
 
-    // Auto add department if role doesn't exist in settings yet
-    const settings = this.getSettings();
-    const currentDepts = settings.departments || this.getDefaultDepartments();
-    if (!currentDepts.some((d) => d.name.toUpperCase() === cleanRole)) {
-      currentDepts.push({
-        id: `dept_${Date.now()}`,
+    await this.seedDefaultDepartments();
+    const existing = await this.departmentRepository.findOne({ where: { name: cleanRole } });
+    if (!existing) {
+      const newDept = this.departmentRepository.create({
         name: cleanRole,
         description: `${cleanRole} Department`,
         color: '#6366f1',
-        createdAt: new Date().toISOString(),
       });
-      this.updateSettings({ departments: currentDepts });
+      await this.departmentRepository.save(newDept);
     }
 
     return this.userRepository.save(user);
