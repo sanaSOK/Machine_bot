@@ -4,11 +4,13 @@ import { SuperAdminController } from './super-admin.controller';
 import { SuperAdminService } from './super-admin.service';
 import { User } from '../users/user.entity';
 import { Attendance } from '../attendance/attendance.entity';
+import { AdminOrganization } from './admin-organization.entity';
 import { AdminModule } from '../admin/admin.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([User, Attendance]),
+    TypeOrmModule.forFeature([AdminOrganization], 'superAdminConnection'),
     AdminModule,
   ],
   controllers: [SuperAdminController],
