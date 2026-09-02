@@ -62,6 +62,7 @@ export interface AdminAttendanceFilter {
   search: string;
   type: '' | 'CHECK_IN' | 'CHECK_OUT';
   date: string;
+  status?: string;
   limit: number;
   offset: number;
 }

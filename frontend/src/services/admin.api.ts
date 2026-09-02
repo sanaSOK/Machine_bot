@@ -44,6 +44,7 @@ export const adminApi = {
     if (filter.search) params.append('search', filter.search);
     if (filter.type) params.append('type', filter.type);
     if (filter.date) params.append('date', filter.date);
+    if (filter.status) params.append('status', filter.status);
     if (filter.limit) params.append('limit', String(filter.limit));
     if (filter.offset) params.append('offset', String(filter.offset));
 

@@ -83,6 +83,7 @@ export class AdminController {
     @Query('search') search?: string,
     @Query('type') type?: 'CHECK_IN' | 'CHECK_OUT',
     @Query('date') date?: string,
+    @Query('status') status?: string,
     @Query('limit') limit?: string,
     @Query('offset') offset?: string,
   ) {
@@ -90,6 +91,7 @@ export class AdminController {
       search,
       type,
       date,
+      status,
       limit: limit ? parseInt(limit, 10) : 50,
       offset: offset ? parseInt(offset, 10) : 0,
     });

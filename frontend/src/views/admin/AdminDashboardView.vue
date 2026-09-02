@@ -107,7 +107,7 @@
 
     <!-- Filter & Search Controls Bar -->
     <div class="glass-panel p-6 rounded-3xl border border-slate-800/80 shadow-xl space-y-4">
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
         <!-- Search Input -->
         <div class="relative">
           <Search class="w-4 h-4 text-slate-400 absolute left-4 top-3.5" />
@@ -129,6 +129,18 @@
           <option value="">All Action Types</option>
           <option value="CHECK_IN">📷 Check In Only</option>
           <option value="CHECK_OUT">🚪 Check Out Only</option>
+        </select>
+
+        <!-- Status Filter -->
+        <select
+          v-model="adminStore.filters.status"
+          @change="adminStore.fetchAttendanceLogs()"
+          class="w-full px-4 py-3 rounded-2xl bg-slate-950 border border-slate-800 text-xs font-semibold text-white focus:outline-none focus:border-indigo-500/80 focus:ring-2 focus:ring-indigo-500/20 transition-all cursor-pointer"
+        >
+          <option value="">All Statuses</option>
+          <option value="PRESENT">🟢 PRESENT</option>
+          <option value="LATE">🟠 LATE</option>
+          <option value="CHECK_OUT">🟣 CHECK OUT</option>
         </select>
 
         <!-- Date Picker Filter -->

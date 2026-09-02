@@ -50,20 +50,18 @@
         </div>
 
         <!-- Navigation Links -->
-        <nav class="space-y-2.5">
+        <nav class="space-y-2">
           <!-- Dashboard Overview -->
           <router-link
             to="/admin"
-            exact-active-class="bg-gradient-to-r from-indigo-600/30 via-purple-600/20 to-indigo-600/10 text-white font-extrabold border-indigo-500/60 shadow-xl glow-indigo nav-active"
+            exact-active-class="nav-item-active"
             :class="[
-              isSidebarCollapsed ? 'justify-center px-2 py-3.5' : 'px-4 py-3.5',
-              'flex items-center gap-3.5 rounded-2xl text-xs font-bold text-slate-400 hover:text-white hover:bg-slate-800/80 border border-transparent transition-all duration-300 group relative overflow-hidden'
+              isSidebarCollapsed ? 'w-11 h-11 justify-center mx-auto' : 'w-full px-3.5 py-3',
+              'flex items-center gap-3 rounded-xl text-xs font-bold text-slate-400 hover:text-slate-100 hover:bg-slate-800/60 border border-transparent transition-all duration-200 group relative cursor-pointer'
             ]"
             :title="isSidebarCollapsed ? 'Dashboard Overview' : ''"
           >
-            <div class="p-2.5 rounded-xl bg-slate-900/90 border border-slate-800 text-indigo-400 group-hover:bg-indigo-500/20 group-hover:border-indigo-500/40 group-hover:text-indigo-300 transition-all duration-300 group-hover:scale-105 shrink-0 shadow-md">
-              <LayoutDashboard class="w-4 h-4" />
-            </div>
+            <LayoutDashboard class="w-5 h-5 shrink-0 transition-transform group-hover:scale-105" />
             <span v-if="!isSidebarCollapsed" class="whitespace-nowrap">Dashboard Overview</span>
             <span v-if="!isSidebarCollapsed" class="ml-auto text-[9px] font-extrabold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 shadow-sm">
               Live
@@ -73,16 +71,14 @@
           <!-- Users -->
           <router-link
             to="/admin/employees"
-            exact-active-class="bg-gradient-to-r from-indigo-600/30 via-purple-600/20 to-indigo-600/10 text-white font-extrabold border-indigo-500/60 shadow-xl glow-indigo nav-active"
+            exact-active-class="nav-item-active"
             :class="[
-              isSidebarCollapsed ? 'justify-center px-2 py-3.5' : 'px-4 py-3.5',
-              'flex items-center gap-3.5 rounded-2xl text-xs font-bold text-slate-400 hover:text-white hover:bg-slate-800/80 border border-transparent transition-all duration-300 group relative overflow-hidden'
+              isSidebarCollapsed ? 'w-11 h-11 justify-center mx-auto' : 'w-full px-3.5 py-3',
+              'flex items-center gap-3 rounded-xl text-xs font-bold text-slate-400 hover:text-slate-100 hover:bg-slate-800/60 border border-transparent transition-all duration-200 group relative cursor-pointer'
             ]"
             :title="isSidebarCollapsed ? 'Users' : ''"
           >
-            <div class="p-2.5 rounded-xl bg-slate-900/90 border border-slate-800 text-indigo-400 group-hover:bg-indigo-500/20 group-hover:border-indigo-500/40 group-hover:text-indigo-300 transition-all duration-300 group-hover:scale-105 shrink-0 shadow-md">
-              <Users class="w-4 h-4" />
-            </div>
+            <Users class="w-5 h-5 shrink-0 transition-transform group-hover:scale-105" />
             <span v-if="!isSidebarCollapsed" class="whitespace-nowrap">Users</span>
             <span v-if="!isSidebarCollapsed && (adminStore.stats?.totalEmployees ?? 0) > 0" class="ml-auto text-[9px] font-extrabold px-2 py-0.5 rounded-full bg-indigo-500/15 text-indigo-300 border border-indigo-500/30 shadow-sm">
               {{ adminStore.stats?.totalEmployees }}
@@ -92,16 +88,14 @@
           <!-- Admin Settings -->
           <router-link
             to="/admin/settings"
-            exact-active-class="bg-gradient-to-r from-indigo-600/30 via-purple-600/20 to-indigo-600/10 text-white font-extrabold border-indigo-500/60 shadow-xl glow-indigo nav-active"
+            exact-active-class="nav-item-active"
             :class="[
-              isSidebarCollapsed ? 'justify-center px-2 py-3.5' : 'px-4 py-3.5',
-              'flex items-center gap-3.5 rounded-2xl text-xs font-bold text-slate-400 hover:text-white hover:bg-slate-800/80 border border-transparent transition-all duration-300 group relative overflow-hidden'
+              isSidebarCollapsed ? 'w-11 h-11 justify-center mx-auto' : 'w-full px-3.5 py-3',
+              'flex items-center gap-3 rounded-xl text-xs font-bold text-slate-400 hover:text-slate-100 hover:bg-slate-800/60 border border-transparent transition-all duration-200 group relative cursor-pointer'
             ]"
             :title="isSidebarCollapsed ? 'Admin Settings' : ''"
           >
-            <div class="p-2.5 rounded-xl bg-slate-900/90 border border-slate-800 text-indigo-400 group-hover:bg-indigo-500/20 group-hover:border-indigo-500/40 group-hover:text-indigo-300 transition-all duration-300 group-hover:scale-105 shrink-0 shadow-md">
-              <Settings class="w-4 h-4" />
-            </div>
+            <Settings class="w-5 h-5 shrink-0 transition-transform group-hover:scale-105" />
             <span v-if="!isSidebarCollapsed" class="whitespace-nowrap">Admin Settings</span>
             <span v-if="!isSidebarCollapsed" class="ml-auto text-[9px] font-extrabold px-2 py-0.5 rounded-full bg-purple-500/15 text-purple-300 border border-purple-500/30 shadow-sm">
               Config
@@ -172,40 +166,34 @@
         </div>
 
         <!-- Mobile Nav Links -->
-        <nav class="space-y-2.5">
+        <nav class="space-y-2">
           <router-link
             to="/admin"
             @click="isMobileDrawerOpen = false"
-            exact-active-class="bg-gradient-to-r from-indigo-600/30 via-purple-600/20 to-indigo-600/10 text-white font-extrabold border-indigo-500/60 shadow-xl glow-indigo nav-active"
-            class="flex items-center gap-3.5 px-4 py-3.5 rounded-2xl text-xs font-bold text-slate-400 hover:text-white hover:bg-slate-800/80 border border-transparent transition-all"
+            exact-active-class="nav-item-active"
+            class="flex items-center gap-3 px-3.5 py-3 rounded-xl text-xs font-bold text-slate-400 hover:text-slate-100 hover:bg-slate-800/60 border border-transparent transition-all relative"
           >
-            <div class="p-2.5 rounded-xl bg-slate-900 border border-slate-800 text-indigo-400">
-              <LayoutDashboard class="w-4 h-4" />
-            </div>
+            <LayoutDashboard class="w-5 h-5 shrink-0" />
             <span>Dashboard Overview</span>
           </router-link>
 
           <router-link
             to="/admin/employees"
             @click="isMobileDrawerOpen = false"
-            exact-active-class="bg-gradient-to-r from-indigo-600/30 via-purple-600/20 to-indigo-600/10 text-white font-extrabold border-indigo-500/60 shadow-xl glow-indigo nav-active"
-            class="flex items-center gap-3.5 px-4 py-3.5 rounded-2xl text-xs font-bold text-slate-400 hover:text-white hover:bg-slate-800/80 border border-transparent transition-all"
+            exact-active-class="nav-item-active"
+            class="flex items-center gap-3 px-3.5 py-3 rounded-xl text-xs font-bold text-slate-400 hover:text-slate-100 hover:bg-slate-800/60 border border-transparent transition-all relative"
           >
-            <div class="p-2.5 rounded-xl bg-slate-900 border border-slate-800 text-indigo-400">
-              <Users class="w-4 h-4" />
-            </div>
+            <Users class="w-5 h-5 shrink-0" />
             <span>Users</span>
           </router-link>
 
           <router-link
             to="/admin/settings"
             @click="isMobileDrawerOpen = false"
-            exact-active-class="bg-gradient-to-r from-indigo-600/30 via-purple-600/20 to-indigo-600/10 text-white font-extrabold border-indigo-500/60 shadow-xl glow-indigo nav-active"
-            class="flex items-center gap-3.5 px-4 py-3.5 rounded-2xl text-xs font-bold text-slate-400 hover:text-white hover:bg-slate-800/80 border border-transparent transition-all"
+            exact-active-class="nav-item-active"
+            class="flex items-center gap-3 px-3.5 py-3 rounded-xl text-xs font-bold text-slate-400 hover:text-slate-100 hover:bg-slate-800/60 border border-transparent transition-all relative"
           >
-            <div class="p-2.5 rounded-xl bg-slate-900 border border-slate-800 text-indigo-400">
-              <Settings class="w-4 h-4" />
-            </div>
+            <Settings class="w-5 h-5 shrink-0" />
             <span>Admin Settings</span>
           </router-link>
         </nav>
@@ -303,15 +291,27 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.nav-active::before {
+.nav-item-active {
+  background-color: rgba(99, 102, 241, 0.12) !important;
+  border-color: rgba(99, 102, 241, 0.35) !important;
+  color: #ffffff !important;
+  box-shadow: 0 0 16px rgba(99, 102, 241, 0.22) !important;
+}
+
+.nav-item-active svg {
+  color: #818cf8 !important;
+  filter: drop-shadow(0 0 6px rgba(129, 140, 248, 0.6));
+}
+
+.nav-item-active::before {
   content: '';
   position: absolute;
   left: 0;
-  top: 15%;
-  bottom: 15%;
-  width: 4px;
-  background: linear-gradient(180deg, #818cf8 0%, #c084fc 100%);
-  border-radius: 0 4px 4px 0;
-  box-shadow: 0 0 12px #818cf8;
+  top: 6px;
+  bottom: 6px;
+  width: 3px;
+  background: #6366f1;
+  border-radius: 0 3px 3px 0;
+  box-shadow: 0 0 8px #6366f1;
 }
 </style>

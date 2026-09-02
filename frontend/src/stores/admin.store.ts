@@ -46,6 +46,7 @@ export const useAdminStore = defineStore('admin', () => {
     search: '',
     type: '',
     date: '',
+    status: '',
     limit: 10,
     offset: 0,
   });
@@ -219,6 +220,7 @@ export const useAdminStore = defineStore('admin', () => {
       search: '',
       type: '',
       date: '',
+      status: '',
       limit: settings.value.pageSize || 10,
       offset: 0,
     };

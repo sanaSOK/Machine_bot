@@ -10,6 +10,7 @@ export interface AdminAttendanceQueryDto {
   search?: string;
   type?: 'CHECK_IN' | 'CHECK_OUT';
   date?: string;
+  status?: string;
   limit?: number;
   offset?: number;
 }
@@ -134,12 +135,18 @@ export class AdminService {
     const qb = this.attendanceRepository
       .createQueryBuilder('attendance')
       .leftJoinAndSelect('attendance.user', 'user')
-      .orderBy('attendance.created_at', 'DESC')
-      .take(limit)
-      .skip(offset);
+      .orderBy('attendance.created_at', 'DESC');
 
     if (query.type) {
       qb.andWhere('attendance.action = :type', { type: query.type });
+    }
+
+    if (query.status) {
+      if (query.status === 'CHECK_OUT') {
+        qb.andWhere('attendance.action = :stAct', { stAct: 'CHECK_OUT' });
+      } else if (query.status === 'PRESENT' || query.status === 'LATE' || query.status === 'CHECK_IN') {
+        qb.andWhere('attendance.action = :stAct', { stAct: 'CHECK_IN' });
+      }
     }
 
     if (query.date) {
@@ -159,7 +166,28 @@ export class AdminService {
       );
     }
 
-    const [data, total] = await qb.getManyAndCount();
+    let data: Attendance[] = [];
+    let total = 0;
+
+    if (query.status === 'PRESENT' || query.status === 'LATE') {
+      const allRecords = await qb.getMany();
+      const settings = this.getSettings();
+      const [startHour, startMin] = (settings.workStartTime || '08:00').split(':').map(Number);
+      const maxOnTimeMins = (startHour || 8) * 60 + (startMin || 0) + (settings.gracePeriodMinutes ?? 15);
+
+      const filtered = allRecords.filter((r) => {
+        if (r.action !== AttendanceAction.CHECK_IN) return false;
+        const d = new Date(r.created_at);
+        const checkInMins = d.getHours() * 60 + d.getMinutes();
+        return query.status === 'LATE' ? checkInMins > maxOnTimeMins : checkInMins <= maxOnTimeMins;
+      });
+
+      total = filtered.length;
+      data = filtered.slice(offset, offset + limit);
+    } else {
+      qb.take(limit).skip(offset);
+      [data, total] = await qb.getManyAndCount();
+    }
 
     return {
       data,
