@@ -19,6 +19,7 @@ describe('AttendanceService', () => {
     photo_url: null,
     address: 'Phnom Penh, Cambodia',
     is_active: true,
+    role: 'EMPLOYEE',
     created_at: new Date(),
     updated_at: new Date(),
     attendances: [],

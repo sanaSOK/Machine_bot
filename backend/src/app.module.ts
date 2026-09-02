@@ -10,6 +10,7 @@ import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { AttendanceModule } from './attendance/attendance.module';
 import { TelegramModule } from './telegram/telegram.module';
+import { AdminModule } from './admin/admin.module';
 
 @Module({
   imports: [
@@ -45,6 +46,7 @@ import { TelegramModule } from './telegram/telegram.module';
     UsersModule,
     AttendanceModule,
     TelegramModule,
+    AdminModule,
   ],
 })
 export class AppModule {}

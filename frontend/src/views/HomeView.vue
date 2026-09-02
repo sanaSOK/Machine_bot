@@ -1,9 +1,14 @@
 <template>
   <div class="min-h-screen bg-slate-950 text-slate-100 flex flex-col p-4 pb-12 max-w-md mx-auto relative overflow-hidden">
-    <!-- Header Title -->
-    <header class="text-center py-4 border-b border-slate-800/80 mb-6">
-      <h1 class="text-xl font-extrabold tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-purple-400">
-        ATTENDANCE SYSTEM
+    <!-- Header Title with Eroxii Logo -->
+    <header class="flex items-center justify-center gap-3 py-4 border-b border-slate-800/80 mb-6">
+      <img
+        src="/logo.png"
+        alt="Eroxii Logo"
+        class="w-8 h-8 object-contain rounded-xl bg-white border border-slate-700/80 p-0.5 shadow-md"
+      />
+      <h1 class="text-xl font-extrabold tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-indigo-300 via-white to-purple-300">
+        EROXII ATTENDANCE
       </h1>
     </header>
 

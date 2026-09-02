@@ -34,6 +34,9 @@ export class User {
   @Column({ name: 'is_active', type: 'boolean', default: true })
   is_active: boolean;
 
+  @Column({ type: 'varchar', length: 64, default: 'EMPLOYEE' })
+  role: string;
+
   @CreateDateColumn({ name: 'created_at' })
   created_at: Date;
 
