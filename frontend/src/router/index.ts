@@ -75,8 +75,9 @@ const router = createRouter({
     {
       path: '/:pathMatch(.*)*',
       redirect: () => {
-        if (typeof window !== 'undefined' && window.location && window.location.port === '3333') {
-          return '/super-admin';
+        if (typeof window !== 'undefined' && window.location) {
+          if (window.location.port === '3333') return '/super-admin';
+          if (window.location.port === '5555') return '/admin';
         }
         return '/';
       },
