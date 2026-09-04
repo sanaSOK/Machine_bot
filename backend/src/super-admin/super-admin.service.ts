@@ -182,7 +182,13 @@ export class SuperAdminService implements OnModuleInit {
     if (dto.adminUsername) org.adminUsername = dto.adminUsername.trim();
     if (dto.contactEmail !== undefined) org.contactEmail = dto.contactEmail;
     if (dto.logoUrl !== undefined) org.logoUrl = dto.logoUrl;
-    if (dto.status) org.status = dto.status;
+    if (dto.status) {
+      org.status = dto.status;
+      this.adminService.updateSettings({
+        status: dto.status,
+        isSuspended: dto.status === 'SUSPENDED',
+      } as any);
+    }
     if (dto.workStartTime) org.workStartTime = dto.workStartTime;
     if (dto.workEndTime) org.workEndTime = dto.workEndTime;
     if (dto.gracePeriodMinutes !== undefined) org.gracePeriodMinutes = dto.gracePeriodMinutes;

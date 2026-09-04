@@ -287,12 +287,95 @@
       <div class="p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto">
         <router-view></router-view>
       </div>
+
+      <!-- Full-screen Suspended Admin Account Payment Block Overlay -->
+      <div
+        v-if="isCurrentOrgSuspended"
+        class="fixed inset-0 z-50 bg-slate-950/95 backdrop-blur-2xl flex items-center justify-center p-4 overflow-y-auto"
+      >
+        <div class="max-w-md w-full bg-slate-900 border-2 border-red-500/50 rounded-3xl p-6 sm:p-8 shadow-2xl text-center space-y-5 relative overflow-hidden my-auto">
+          <!-- Ambient Red & Amber Orbs -->
+          <div class="absolute -top-24 -left-24 w-48 h-48 bg-red-500/25 rounded-full blur-3xl pointer-events-none"></div>
+          <div class="absolute -bottom-24 -right-24 w-48 h-48 bg-amber-500/25 rounded-full blur-3xl pointer-events-none"></div>
+
+          <!-- Lock Icon -->
+          <div class="w-16 h-16 rounded-2xl bg-red-500/15 border-2 border-red-500/40 text-red-400 flex items-center justify-center mx-auto shadow-lg glow-red">
+            <ShieldAlert class="w-8 h-8 animate-pulse text-red-400" />
+          </div>
+
+          <!-- Title -->
+          <div>
+            <h2 class="text-2xl font-black text-white tracking-tight">Admin Account Suspended</h2>
+            <p class="text-xs text-slate-300 font-medium mt-1.5 leading-relaxed">
+              Your admin organization access is currently <span class="text-red-400 font-extrabold uppercase">SUSPENDED</span>.<br />
+              Payment is required to continue using the attendance management service.
+            </p>
+          </div>
+
+          <!-- Official KHQR Card Style Container -->
+          <div class="w-64 sm:w-72 mx-auto bg-white rounded-3xl shadow-2xl overflow-hidden border border-slate-200 text-left">
+            <!-- Official KHQR Red Top Header -->
+            <div class="bg-[#E1251B] text-white px-5 py-3.5 rounded-t-3xl flex items-center justify-center relative shadow-sm">
+              <div class="text-base font-black tracking-[0.25em] text-white uppercase font-sans">KHQR</div>
+            </div>
+
+            <!-- Card Body -->
+            <div class="p-4 space-y-3 bg-white">
+              <!-- Company Name Field -->
+              <div class="border-b border-dashed border-slate-200 pb-2.5">
+                <div class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Company / Org Name</div>
+                <div class="text-sm font-black text-slate-900 truncate uppercase mt-0.5">
+                  {{ adminStore.settings?.companyName || 'Eroxii _Vireak' }}
+                </div>
+              </div>
+
+              <!-- QR Image -->
+              <div class="p-1 bg-white rounded-xl border border-slate-100 flex items-center justify-center">
+                <img
+                  :src="cleanQrImg"
+                  alt="KHQR Payment Code"
+                  class="w-full h-auto object-contain rounded-lg"
+                />
+              </div>
+
+              <div class="text-center pt-0.5">
+                <span class="inline-block text-[9px] font-extrabold text-red-600 bg-red-50 px-2.5 py-1 rounded-full border border-red-100">
+                  Scan to Pay via Bakong / KHQR App
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Alert Notice -->
+          <div class="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/25 text-amber-300 text-left text-[11px] space-y-1">
+            <div class="font-extrabold flex items-center gap-1.5">
+              <CreditCard class="w-3.5 h-3.5 text-amber-400" />
+              <span>Payment & Reactivation Steps:</span>
+            </div>
+            <p class="text-slate-300 text-[10px] leading-relaxed">
+              1. Open your ABA Mobile app or any KHQR supported app.<br />
+              2. Scan the QR code above to process your payment.<br />
+              3. Contact system super admin to verify payment and set status back to ACTIVE.
+            </p>
+          </div>
+
+          <!-- Actions -->
+          <div class="pt-1 flex flex-col sm:flex-row items-center gap-3">
+            <router-link
+              to="/super-admin"
+              class="w-full py-3 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-slate-950 font-black text-xs transition-all shadow-lg text-center"
+            >
+              Go to Super Admin Console
+            </router-link>
+          </div>
+        </div>
+      </div>
     </main>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import {
   LayoutDashboard,
@@ -301,21 +384,47 @@ import {
   Settings,
   Smartphone,
   ShieldCheck,
+  ShieldAlert,
+  CreditCard,
   PanelLeftClose,
   PanelLeftOpen,
   Menu,
   X,
 } from 'lucide-vue-next';
 import { useAdminStore } from '../../stores/admin.store';
+import { useSuperAdminStore } from '../../stores/super-admin.store';
+import cleanQrImg from '../../assets/clean-qr.png';
 
 const router = useRouter();
 const adminStore = useAdminStore();
+const superAdminStore = useSuperAdminStore();
 const isSidebarCollapsed = ref(false);
 const isMobileDrawerOpen = ref(false);
 
-onMounted(() => {
+const isCurrentOrgSuspended = computed(() => {
+  if (adminStore.settings?.status === 'SUSPENDED' || adminStore.settings?.isSuspended) {
+    return true;
+  }
+  if (superAdminStore.adminOrgs.length > 0) {
+    const suspendedOrg = superAdminStore.adminOrgs.find(
+      (o) =>
+        o.status === 'SUSPENDED' &&
+        (o.companyName.toLowerCase().includes('eroxii') ||
+          o.adminUsername.toLowerCase().includes('eroxii') ||
+          o.id === '1'),
+    ) || superAdminStore.adminOrgs.find((o) => o.status === 'SUSPENDED');
+    if (suspendedOrg) {
+      return true;
+    }
+  }
+  return false;
+});
+
+onMounted(async () => {
+  await adminStore.fetchSettings();
   adminStore.fetchStats();
   adminStore.fetchDepartments();
+  superAdminStore.fetchAdminOrgs();
 });
 </script>
 

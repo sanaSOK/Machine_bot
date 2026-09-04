@@ -37,6 +37,8 @@ export interface DepartmentItem {
 export interface SystemSettings {
   companyName: string;
   logoUrl?: string;
+  status?: 'ACTIVE' | 'SUSPENDED';
+  isSuspended?: boolean;
   workStartTime: string;
   workEndTime: string;
   gracePeriodMinutes: number;

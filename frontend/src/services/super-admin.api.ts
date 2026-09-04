@@ -17,6 +17,17 @@ export const superAdminApi = {
     return response.data;
   },
 
+  async uploadOrgLogo(file: File): Promise<{ logoUrl: string }> {
+    const formData = new FormData();
+    formData.append('logo', file);
+    const response = await api.post<{ logoUrl: string }>('/super-admin/admins/upload-logo', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data;
+  },
+
   async updateAdminOrg(id: string, dto: Partial<AdminOrgItem>): Promise<AdminOrgItem[]> {
     const response = await api.patch<AdminOrgItem[]>(`/super-admin/admins/${id}`, dto);
     return response.data;

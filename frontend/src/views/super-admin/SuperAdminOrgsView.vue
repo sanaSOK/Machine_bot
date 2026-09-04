@@ -216,6 +216,51 @@
         </div>
 
         <form @submit.prevent="handleSubmit" class="space-y-4">
+          <!-- Organization Logo / Profile Picture Upload -->
+          <div class="p-4 rounded-2xl bg-slate-950/80 border border-amber-500/20 flex items-center gap-4">
+            <div class="relative group shrink-0">
+              <div class="w-16 h-16 rounded-2xl bg-white p-1 border-2 border-amber-500/40 shadow-lg overflow-hidden flex items-center justify-center relative">
+                <img
+                  v-if="form.logoUrl"
+                  :src="form.logoUrl"
+                  alt="Organization Logo"
+                  class="w-full h-full object-contain"
+                />
+                <Building2 v-else class="w-8 h-8 text-amber-500" />
+                <div v-if="superAdminStore.isUploadingOrgLogo" class="absolute inset-0 bg-slate-950/75 flex items-center justify-center">
+                  <Loader2 class="w-5 h-5 text-amber-400 animate-spin" />
+                </div>
+              </div>
+            </div>
+
+            <div class="space-y-1.5 flex-1">
+              <label class="block text-xs font-bold text-white uppercase tracking-wider">
+                Organization Profile / Logo Image
+              </label>
+              <p class="text-[11px] text-slate-400">Upload profile image for this admin organization</p>
+              
+              <div class="flex items-center gap-2 pt-0.5">
+                <input
+                  ref="logoFileInput"
+                  type="file"
+                  accept="image/*"
+                  @change="onLogoSelected"
+                  class="hidden"
+                />
+                <button
+                  type="button"
+                  @click="triggerLogoUpload"
+                  :disabled="superAdminStore.isUploadingOrgLogo"
+                  class="px-3.5 py-1.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-300 font-extrabold text-xs transition-all flex items-center gap-2 cursor-pointer active:scale-95 disabled:opacity-50"
+                >
+                  <Upload v-if="!superAdminStore.isUploadingOrgLogo" class="w-3.5 h-3.5" />
+                  <Loader2 v-else class="w-3.5 h-3.5 animate-spin" />
+                  <span>{{ superAdminStore.isUploadingOrgLogo ? 'Uploading...' : 'Upload Image Profile' }}</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
           <div>
             <label class="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5">
               Company / Admin Name <span class="text-red-400">*</span>
@@ -314,6 +359,55 @@
               <option value="ACTIVE">ACTIVE</option>
               <option value="SUSPENDED">SUSPENDED</option>
             </select>
+
+            <!-- Live KHQR Standee Card inside Edit Modal when SUSPENDED is selected -->
+            <div
+              v-if="form.status === 'SUSPENDED'"
+              class="mt-3 p-4 rounded-3xl bg-slate-950 border-2 border-red-500/30 text-center space-y-3 shadow-xl"
+            >
+              <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-red-500/20 text-red-400 text-[10px] font-black uppercase tracking-wider">
+                <AlertTriangle class="w-3.5 h-3.5" />
+                <span>Payment Required for Suspended Status</span>
+              </div>
+              
+              <p class="text-[11px] text-slate-300 font-medium leading-relaxed">
+                Setting status to <span class="text-red-400 font-black uppercase">SUSPENDED</span> requires payment to reactivate.
+              </p>
+
+              <!-- Official KHQR Card Style -->
+              <div class="w-60 mx-auto bg-white rounded-3xl shadow-2xl overflow-hidden border border-slate-200 text-left">
+                <!-- Official KHQR Red Top Header -->
+                <div class="bg-[#E1251B] text-white px-4 py-3 rounded-t-3xl flex items-center justify-center relative shadow-sm">
+                  <div class="text-xs font-black tracking-[0.25em] text-white uppercase font-sans">KHQR</div>
+                </div>
+
+                <!-- Card Body -->
+                <div class="p-3.5 space-y-2.5 bg-white">
+                  <!-- Company Name Field -->
+                  <div class="border-b border-dashed border-slate-200 pb-2">
+                    <div class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Company / Org Name</div>
+                    <div class="text-xs font-black text-slate-900 truncate uppercase mt-0.5">
+                      {{ form.companyName || 'ADMIN ORGANIZATION' }}
+                    </div>
+                  </div>
+
+                  <!-- QR Image -->
+                  <div class="p-1 bg-white rounded-xl border border-slate-100 flex items-center justify-center">
+                    <img
+                      :src="cleanQrImg"
+                      alt="KHQR Payment Code"
+                      class="w-full h-auto object-contain rounded-lg"
+                    />
+                  </div>
+
+                  <div class="text-center pt-0.5">
+                    <span class="inline-block text-[9px] font-extrabold text-red-600 bg-red-50 px-2 py-0.5 rounded-full border border-red-100">
+                      Scan to Pay via Bakong / KHQR App
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
 
           <div class="pt-4 flex items-center justify-end gap-3 border-t border-slate-800">
@@ -337,6 +431,102 @@
         </form>
       </div>
     </div>
+
+    <!-- Suspended Admin Payment QR Modal -->
+    <div
+      v-if="isSuspendedPaymentModalOpen && suspendedOrgForModal"
+      class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md transition-opacity duration-300"
+    >
+      <div
+        class="bg-slate-900 border-2 border-red-500/40 rounded-3xl max-w-md w-full p-6 sm:p-8 shadow-2xl space-y-5 relative overflow-hidden text-center"
+      >
+        <!-- Background Red & Amber Orbs -->
+        <div class="absolute -top-24 -left-24 w-48 h-48 bg-red-500/20 rounded-full blur-3xl pointer-events-none"></div>
+        <div class="absolute -bottom-24 -right-24 w-48 h-48 bg-amber-500/20 rounded-full blur-3xl pointer-events-none"></div>
+
+        <!-- Close Button -->
+        <button
+          @click="isSuspendedPaymentModalOpen = false"
+          class="absolute top-4 right-4 p-2 rounded-xl text-slate-400 hover:text-white bg-slate-950 hover:bg-slate-800 border border-slate-800 transition-colors cursor-pointer"
+        >
+          <X class="w-5 h-5" />
+        </button>
+
+        <!-- Header Badge -->
+        <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-red-500/15 border border-red-500/30 text-red-400 text-xs font-black uppercase tracking-wider">
+          <AlertTriangle class="w-4 h-4 animate-bounce text-red-400" />
+          <span>Account Suspended - Payment Required</span>
+        </div>
+
+        <!-- Title & Organization Info -->
+        <div>
+          <h3 class="text-xl font-black text-white">
+            {{ suspendedOrgForModal.companyName }}
+          </h3>
+          <p class="text-xs text-slate-300 font-medium mt-1 leading-relaxed">
+            This admin organization is now <span class="text-red-400 font-extrabold uppercase">SUSPENDED</span>.<br />Payment is required to continue using the service.
+          </p>
+        </div>
+
+        <!-- Official KHQR Card Style Container -->
+        <div class="w-64 mx-auto bg-white rounded-3xl shadow-2xl overflow-hidden border border-slate-200 text-left">
+          <!-- Official KHQR Red Top Header -->
+          <div class="bg-[#E1251B] text-white px-5 py-3.5 rounded-t-3xl flex items-center justify-center relative shadow-sm">
+            <div class="text-sm font-black tracking-[0.25em] text-white uppercase font-sans">KHQR</div>
+          </div>
+
+          <!-- Card Body -->
+          <div class="p-4 space-y-3 bg-white">
+            <!-- Company Name Field -->
+            <div class="border-b border-dashed border-slate-200 pb-2.5">
+              <div class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Company / Org Name</div>
+              <div class="text-sm font-black text-slate-900 truncate uppercase mt-0.5">
+                {{ suspendedOrgForModal.companyName }}
+              </div>
+            </div>
+
+            <!-- QR Image -->
+            <div class="p-1 bg-white rounded-xl border border-slate-100 flex items-center justify-center">
+              <img
+                :src="cleanQrImg"
+                alt="KHQR Payment Code"
+                class="w-full h-auto object-contain rounded-lg"
+              />
+            </div>
+
+            <div class="text-center pt-0.5">
+              <span class="inline-block text-[9px] font-extrabold text-red-600 bg-red-50 px-2.5 py-1 rounded-full border border-red-100">
+                Scan to Pay via Bakong / KHQR App
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Instructions Box -->
+        <div class="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/25 text-amber-300 text-left text-[11px] space-y-1">
+          <div class="font-extrabold flex items-center gap-1.5">
+            <CreditCard class="w-3.5 h-3.5 text-amber-400" />
+            <span>Payment & Activation Steps:</span>
+          </div>
+          <p class="text-slate-300 text-[10px] leading-relaxed">
+            1. Open ABA Mobile app or any KHQR banking app.<br />
+            2. Scan the QR code above to make payment.<br />
+            3. Upon payment completion, change status back to <span class="text-emerald-400 font-bold">ACTIVE</span>.
+          </p>
+        </div>
+
+        <!-- Actions -->
+        <div class="pt-1">
+          <button
+            @click="isSuspendedPaymentModalOpen = false"
+            class="w-full py-3 rounded-xl bg-gradient-to-r from-red-600 via-amber-600 to-amber-500 hover:from-red-500 hover:to-amber-400 text-slate-950 font-black text-xs transition-all shadow-lg glow-amber cursor-pointer active:scale-95 flex items-center justify-center gap-2"
+          >
+            <CheckCircle2 class="w-4 h-4" />
+            <span>I Understand & Confirm Suspension</span>
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -351,12 +541,16 @@ import {
   Trash2,
   CheckCircle2,
   AlertCircle,
+  AlertTriangle,
+  CreditCard,
   Loader2,
   ExternalLink,
   X,
+  Upload,
 } from 'lucide-vue-next';
 import { useSuperAdminStore } from '../../stores/super-admin.store';
 import type { AdminOrgItem } from '../../types/super-admin';
+import cleanQrImg from '../../assets/clean-qr.png';
 
 const superAdminStore = useSuperAdminStore();
 
@@ -365,10 +559,15 @@ const isModalOpen = ref(false);
 const isEditMode = ref(false);
 const activeEditId = ref<string | null>(null);
 
+// Payment Notice Modal for Suspended Status
+const isSuspendedPaymentModalOpen = ref(false);
+const suspendedOrgForModal = ref<AdminOrgItem | null>(null);
+
 const form = ref<{
   companyName: string;
   adminUsername: string;
   contactEmail: string;
+  logoUrl: string;
   workStartTime: string;
   workEndTime: string;
   telegramBotToken: string;
@@ -378,12 +577,32 @@ const form = ref<{
   companyName: '',
   adminUsername: '',
   contactEmail: '',
+  logoUrl: '/logo.png',
   workStartTime: '08:00',
   workEndTime: '17:00',
   telegramBotToken: '',
   telegramNotificationChatId: '',
   status: 'ACTIVE',
 });
+
+const logoFileInput = ref<HTMLInputElement | null>(null);
+
+function triggerLogoUpload() {
+  if (logoFileInput.value) {
+    logoFileInput.value.click();
+  }
+}
+
+async function onLogoSelected(event: Event) {
+  const target = event.target as HTMLInputElement;
+  if (target.files && target.files[0]) {
+    const file = target.files[0];
+    const uploadedUrl = await superAdminStore.uploadOrgLogo(file);
+    if (uploadedUrl) {
+      form.value.logoUrl = uploadedUrl;
+    }
+  }
+}
 
 const filteredOrgs = computed(() => {
   const query = searchQuery.value.toLowerCase().trim();
@@ -407,6 +626,7 @@ function openCreateModal() {
     companyName: '',
     adminUsername: '',
     contactEmail: '',
+    logoUrl: '/logo.png',
     workStartTime: '08:00',
     workEndTime: '17:00',
     telegramBotToken: '',
@@ -423,6 +643,7 @@ function openEditModal(org: AdminOrgItem) {
     companyName: org.companyName || '',
     adminUsername: org.adminUsername || '',
     contactEmail: org.contactEmail || '',
+    logoUrl: org.logoUrl || '/logo.png',
     workStartTime: org.workStartTime || '08:00',
     workEndTime: org.workEndTime || '17:00',
     telegramBotToken: org.telegramBotToken || '',
@@ -432,9 +653,15 @@ function openEditModal(org: AdminOrgItem) {
   isModalOpen.value = true;
 }
 
+function showSuspendedModal(org: AdminOrgItem) {
+  suspendedOrgForModal.value = org;
+  isSuspendedPaymentModalOpen.value = true;
+}
+
 async function handleSubmit() {
   if (!form.value.companyName.trim()) return;
 
+  const targetStatus = form.value.status;
   let success = false;
   if (isEditMode.value && activeEditId.value) {
     success = await superAdminStore.updateAdminOrg(activeEditId.value, form.value);
@@ -444,12 +671,21 @@ async function handleSubmit() {
 
   if (success) {
     isModalOpen.value = false;
+    if (targetStatus === 'SUSPENDED') {
+      const match = superAdminStore.adminOrgs.find((o) => o.companyName === form.value.companyName);
+      if (match) {
+        showSuspendedModal(match);
+      }
+    }
   }
 }
 
 async function toggleStatus(org: AdminOrgItem) {
   const newStatus = org.status === 'ACTIVE' ? 'SUSPENDED' : 'ACTIVE';
   await superAdminStore.toggleAdminStatus(org.id, newStatus);
+  if (newStatus === 'SUSPENDED') {
+    showSuspendedModal({ ...org, status: 'SUSPENDED' });
+  }
 }
 
 async function confirmDelete(org: AdminOrgItem) {

@@ -55,7 +55,7 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
     } catch (e) {
       // fallback to configService
     }
-    return this.configService.get<string>('FRONTEND_URL') || 'https://grand-traveler-linked-species.trycloudflare.com';
+    return this.configService.get<string>('FRONTEND_URL') || 'https://fragrances-expects-wires-handling.trycloudflare.com';
   }
 
   /**

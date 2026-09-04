@@ -39,7 +39,7 @@ services:
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-8982771897:AAGjMp4SYiLGQSyUsotEAIaIOQ4wWLsQrm0}
       JWT_SECRET: ${JWT_SECRET:-super_secret_jwt_key_telegram_attendance_2026}
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
-      FRONTEND_URL: ${FRONTEND_URL:-https://shot-pastor-comment-absence.trycloudflare.com}
+      FRONTEND_URL: ${FRONTEND_URL:-https://fragrances-expects-wires-handling.trycloudflare.com}
     ports:
       - "3000:3000"
     volumes:

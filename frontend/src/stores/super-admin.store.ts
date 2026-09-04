@@ -18,8 +18,27 @@ export const useSuperAdminStore = defineStore('superAdmin', () => {
   const isLoadingOrgs = ref<boolean>(false);
   const isCreatingOrg = ref<boolean>(false);
   const isUpdatingOrg = ref<boolean>(false);
+  const isUploadingOrgLogo = ref<boolean>(false);
   const error = ref<string | null>(null);
   const successMessage = ref<string | null>(null);
+
+  async function uploadOrgLogo(file: File): Promise<string | null> {
+    isUploadingOrgLogo.value = true;
+    error.value = null;
+    try {
+      const res = await superAdminApi.uploadOrgLogo(file);
+      if (res && res.logoUrl) {
+        successMessage.value = 'Organization logo uploaded successfully!';
+        return res.logoUrl;
+      }
+      return null;
+    } catch (err: any) {
+      error.value = err.message || 'Failed to upload organization logo';
+      return null;
+    } finally {
+      isUploadingOrgLogo.value = false;
+    }
+  }
 
   async function fetchStats() {
     isLoadingStats.value = true;
@@ -138,8 +157,10 @@ export const useSuperAdminStore = defineStore('superAdmin', () => {
     isLoadingOrgs,
     isCreatingOrg,
     isUpdatingOrg,
+    isUploadingOrgLogo,
     error,
     successMessage,
+    uploadOrgLogo,
     fetchStats,
     fetchAdminOrgs,
     createAdminOrg,
