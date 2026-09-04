@@ -770,23 +770,23 @@ export class AdminService implements OnModuleInit {
 
             if (checkInMins > maxOnTimeMins) {
               const lateMins = checkInMins - maxOnTimeMins;
-              personalStatusText = `🟢 <b>Check-In:</b> <code>${timeStr}</code>\n🟠 <b>Status: LATE (+${lateMins}m)</b>`;
+              personalStatusText = `- <b>Check-In:</b> <code>${timeStr}</code>\n🟠 <b>Status: LATE (+${lateMins}m)</b>`;
             } else {
-              personalStatusText = `🟢 <b>Check-In:</b> <code>${timeStr}</code>\n🟢 <b>Status: ON TIME</b>`;
+              personalStatusText = `- <b>Check-In:</b> <code>${timeStr}</code>\n🟢 <b>Status: ON TIME</b>`;
             }
 
             if (checkOutRec) {
               const outD = new Date(checkOutRec.created_at);
               const outTimeStr = outD.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false });
-              personalStatusText += `\n🚪 <b>Check-Out:</b> <code>${outTimeStr}</code>`;
+              personalStatusText += `\n- <b>Check-Out:</b> <code>${outTimeStr}</code>`;
             }
           }
 
           const personalMsg =
             `👋 <b>Hello ${emp.first_name || 'Employee'}!</b>\n\n` +
-            `📋 <b>Your Daily Attendance Summary</b>\n` +
-            `🏢 <b>Company:</b> ${settings.companyName || 'Attendance System'}\n` +
-            `📅 <b>Date:</b> ${dateStr}\n\n` +
+            `- <b>Your Daily Attendance Summary</b>\n` +
+            `- <b>Company:</b> ${settings.companyName || 'Attendance System'}\n` +
+            `- <b>Date:</b> ${dateStr}\n\n` +
             `${personalStatusText}\n\n` +
             `<i>Thank you for your hard work today!</i>`;
 
