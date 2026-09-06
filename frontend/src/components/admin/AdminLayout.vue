@@ -359,15 +359,7 @@
             </p>
           </div>
 
-          <!-- Actions -->
-          <div class="pt-1 flex flex-col sm:flex-row items-center gap-3">
-            <router-link
-              to="/super-admin"
-              class="w-full py-3 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-slate-950 font-black text-xs transition-all shadow-lg text-center"
-            >
-              Go to Super Admin Console
-            </router-link>
-          </div>
+
         </div>
       </div>
     </main>

@@ -24,7 +24,7 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
   private isPolling = false;
   private updateOffset = 0;
 
-  constructor(private readonly configService: ConfigService) {}
+  constructor(private readonly configService: ConfigService) { }
 
   async onModuleInit() {
     const botToken = this.configService.get<string>('TELEGRAM_BOT_TOKEN');
@@ -43,19 +43,26 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
    * Reads FRONTEND_URL dynamically from .env or ConfigService
    */
   public getFrontendUrl(): string {
+    let url = '';
     try {
       const envPath = path.join(process.cwd(), '.env');
       if (fs.existsSync(envPath)) {
         const content = fs.readFileSync(envPath, 'utf8');
         const match = content.match(/FRONTEND_URL=(.*)/);
         if (match && match[1] && match[1].trim()) {
-          return match[1].trim();
+          url = match[1].trim();
         }
       }
     } catch (e) {
       // fallback to configService
     }
-    return this.configService.get<string>('FRONTEND_URL') || 'https://fragrances-expects-wires-handling.trycloudflare.com';
+    if (!url) {
+      url = this.configService.get<string>('FRONTEND_URL') || '';
+    }
+    if (!url || !url.startsWith('https://')) {
+      return 'https://similarly-query-mere-mar.trycloudflare.com';
+    }
+    return url;
   }
 
   /**
@@ -235,7 +242,22 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
       }),
     });
 
-    return response.json();
+    const data = (await response.json()) as any;
+    if (!data.ok && replyMarkup) {
+      this.logger.warn(`sendMessage with replyMarkup failed (${data.description}), retrying without replyMarkup...`);
+      const fallbackResponse = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          chat_id: chatId,
+          text,
+          parse_mode: 'HTML',
+        }),
+      });
+      return fallbackResponse.json();
+    }
+
+    return data;
   }
 
   /**
