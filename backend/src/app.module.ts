@@ -7,15 +7,18 @@ import * as path from 'path';
 import * as fs from 'fs';
 
 import { User } from './users/user.entity';
+import { AdminUser } from './users/admin-user.entity';
 import { Attendance } from './attendance/attendance.entity';
 import { Department } from './admin/department.entity';
-import { AdminOrganization } from './super-admin/admin-organization.entity';
+import { Work } from './staffs/work.entity';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { AttendanceModule } from './attendance/attendance.module';
 import { TelegramModule } from './telegram/telegram.module';
 import { AdminModule } from './admin/admin.module';
 import { SuperAdminModule } from './super-admin/super-admin.module';
+import { ProfileModule } from './profile/profile.module';
+import { MailModule } from './mail/mail.module';
 import { AppController } from './app.controller';
 
 @Module({
@@ -32,25 +35,9 @@ import { AppController } from './app.controller';
         port: parseInt(configService.get<string>('DB_PORT') || '3306', 10),
         username: configService.get<string>('DB_USERNAME') || 'root',
         password: configService.get<string>('DB_PASSWORD') || '1234',
-        database: configService.get<string>('DB_DATABASE') || 'telegram_app',
-        entities: [User, Attendance, Department],
-        synchronize: true,
-        logging: false,
-      }),
-      inject: [ConfigService],
-    }),
-    TypeOrmModule.forRootAsync({
-      name: 'superAdminConnection',
-      imports: [ConfigModule],
-      useFactory: (configService: ConfigService) => ({
-        type: 'mysql',
-        host: configService.get<string>('DB_HOST') || 'localhost',
-        port: parseInt(configService.get<string>('DB_PORT') || '3306', 10),
-        username: configService.get<string>('DB_USERNAME') || 'root',
-        password: configService.get<string>('DB_PASSWORD') || '1234',
-        database: configService.get<string>('DB_SUPERADMIN_DATABASE') || 'super_admin_attendances_db',
-        entities: [AdminOrganization],
-        synchronize: true,
+        database: configService.get<string>('DB_DATABASE') || 'telegram_attendance_db',
+        entities: [User, AdminUser, Attendance, Department, Work],
+        synchronize: false,
         logging: false,
       }),
       inject: [ConfigService],
@@ -82,6 +69,8 @@ import { AppController } from './app.controller';
     TelegramModule,
     AdminModule,
     SuperAdminModule,
+    ProfileModule,
+    MailModule,
   ],
   controllers: [AppController],
 })

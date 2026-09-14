@@ -1,8 +1,9 @@
-import { NestFactory } from '@nestjs/core';
+import { NestFactory, Reflector } from '@nestjs/core';
 import { ValidationPipe, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { AppModule } from './app.module';
 import { AllExceptionsFilter } from './common/filters/http-exception.filter';
+import { TransformInterceptor } from './common/interceptors/transform.interceptor';
 
 async function bootstrap() {
   const logger = new Logger('Bootstrap');
@@ -40,6 +41,11 @@ async function bootstrap() {
 
   // Global Exception Filter
   app.useGlobalFilters(new AllExceptionsFilter());
+
+
+  // globale msg response
+  const reflector = app.get(Reflector);
+  app.useGlobalInterceptors(new TransformInterceptor(reflector));
 
   await app.listen(port);
   logger.log(`🚀 Telegram Attendance Backend running on http://localhost:${port}/api`);
