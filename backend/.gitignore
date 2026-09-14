@@ -5,3 +5,4 @@ uploads/
 cloudflared.exe
 scratch/
 *.log
+postman_collection.json
