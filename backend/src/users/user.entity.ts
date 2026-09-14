@@ -13,8 +13,8 @@ export class User {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column({ name: 'telegram_user_id', type: 'varchar', length: 64, unique: true })
-  telegram_user_id: string;
+  @Column({ name: 'telegram_user_id', type: 'varchar', length: 64, unique: true, nullable: true })
+  telegram_user_id: string | null;
 
   @Column({ type: 'varchar', length: 255, nullable: true })
   username: string | null;
