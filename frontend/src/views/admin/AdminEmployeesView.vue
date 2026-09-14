@@ -4,10 +4,10 @@
     <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
       <div>
         <h2 class="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-white via-slate-100 to-indigo-200 tracking-tight">
-          Users
+          Users Management
         </h2>
         <p class="text-xs text-slate-400 font-medium mt-1">
-          Registered Telegram accounts, user roles, and check-in history
+          Registered Telegram accounts, role management, user details, active status control, and check-in history
         </p>
       </div>
 
@@ -113,16 +113,17 @@
 
       <!-- Data Table -->
       <div v-else class="overflow-x-auto min-w-full">
-        <table class="w-full text-left border-collapse min-w-[750px]">
+        <table class="w-full text-left border-collapse min-w-[950px]">
           <thead>
             <tr class="border-b border-slate-800/80 bg-slate-950/60 text-[10px] font-black uppercase tracking-wider text-slate-400">
               <th class="py-4 px-6">ID</th>
               <th class="py-4 px-6">User</th>
               <th class="py-4 px-6">Telegram ID</th>
-              <th class="py-4 px-6">Role (Editable Input)</th>
-              <th class="py-4 px-6">Status</th>
+              <th class="py-4 px-6">Department / Role</th>
+              <th class="py-4 px-6">Today Status</th>
+              <th class="py-4 px-6">Account Status</th>
               <th class="py-4 px-6">Total Check-ins</th>
-              <th class="py-4 px-6">Joined Date</th>
+              <th class="py-4 px-6 text-center">Actions</th>
             </tr>
           </thead>
           <tbody class="divide-y divide-slate-800/50 text-xs font-medium">
@@ -208,14 +209,57 @@
                 </span>
               </td>
 
+              <!-- Account Active Status -->
+              <td class="py-4.5 px-6 whitespace-nowrap">
+                <button
+                  @click="handleToggleStatus(user)"
+                  :disabled="togglingUserId === user.id"
+                  class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-[10px] font-extrabold border transition-all cursor-pointer shadow-sm active:scale-95 disabled:opacity-50"
+                  :class="user.is_active ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30 hover:bg-emerald-500/25' : 'bg-red-500/15 text-red-300 border-red-500/30 hover:bg-red-500/25'"
+                  :title="user.is_active ? 'Click to Deactivate user' : 'Click to Activate user'"
+                >
+                  <Loader2 v-if="togglingUserId === user.id" class="w-3 h-3 animate-spin" />
+                  <UserCheck v-else-if="user.is_active" class="w-3 h-3 text-emerald-400 shrink-0" />
+                  <UserX v-else class="w-3 h-3 text-red-400 shrink-0" />
+                  <span>{{ user.is_active ? 'ACTIVE' : 'INACTIVE' }}</span>
+                </button>
+              </td>
+
               <!-- Total Check-ins -->
               <td class="py-4.5 px-6 font-bold text-white text-sm">
                 {{ user.totalAttendances || 0 }}
               </td>
 
-              <!-- Joined Date -->
-              <td class="py-4.5 px-6 text-slate-400 font-medium">
-                {{ formatDate(user.created_at) }}
+              <!-- User Actions Column -->
+              <td class="py-4.5 px-6">
+                <div class="flex items-center justify-center gap-1.5">
+                  <!-- View Details Button -->
+                  <button
+                    @click="openViewUserModal(user)"
+                    class="p-2 rounded-xl bg-slate-900 hover:bg-indigo-600/20 text-slate-400 hover:text-indigo-300 border border-slate-800 hover:border-indigo-500/40 transition-all cursor-pointer shadow-sm"
+                    title="View User Details & History"
+                  >
+                    <Eye class="w-3.5 h-3.5" />
+                  </button>
+
+                  <!-- Edit User Button -->
+                  <button
+                    @click="openEditUserModal(user)"
+                    class="p-2 rounded-xl bg-slate-900 hover:bg-amber-600/20 text-slate-400 hover:text-amber-300 border border-slate-800 hover:border-amber-500/40 transition-all cursor-pointer shadow-sm"
+                    title="Edit User Profile"
+                  >
+                    <Edit3 class="w-3.5 h-3.5" />
+                  </button>
+
+                  <!-- Delete User Button -->
+                  <button
+                    @click="openDeleteConfirmModal(user)"
+                    class="p-2 rounded-xl bg-slate-900 hover:bg-red-600/20 text-slate-400 hover:text-red-400 border border-slate-800 hover:border-red-500/40 transition-all cursor-pointer shadow-sm"
+                    title="Delete User"
+                  >
+                    <Trash2 class="w-3.5 h-3.5" />
+                  </button>
+                </div>
               </td>
             </tr>
           </tbody>
@@ -247,13 +291,313 @@
         </div>
       </div>
     </div>
+
+    <!-- 1. VIEW USER DETAILS MODAL -->
+    <div v-if="isViewModalOpen" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
+      <div class="glass-panel w-full max-w-2xl rounded-3xl border border-slate-800 p-6 space-y-6 shadow-2xl max-h-[90vh] overflow-y-auto">
+        <!-- Modal Header -->
+        <div class="flex items-center justify-between border-b border-slate-800 pb-4">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-2xl bg-indigo-600/20 border border-indigo-500/40 flex items-center justify-center text-indigo-400">
+              <Eye class="w-5 h-5" />
+            </div>
+            <div>
+              <h3 class="text-lg font-black text-white">User Details & History</h3>
+              <p class="text-xs text-slate-400 font-medium">User Profile #{{ viewingUser?.id }}</p>
+            </div>
+          </div>
+          <button @click="isViewModalOpen = false" class="p-2 rounded-xl bg-slate-900 text-slate-400 hover:text-white border border-slate-800 cursor-pointer">
+            <X class="w-4 h-4" />
+          </button>
+        </div>
+
+        <!-- Loading State -->
+        <div v-if="isLoadingUserDetails" class="py-12 text-center space-y-3">
+          <Loader2 class="w-8 h-8 animate-spin text-indigo-400 mx-auto" />
+          <p class="text-xs font-bold text-slate-400">Fetching user history...</p>
+        </div>
+
+        <div v-else-if="userDetailsData" class="space-y-6">
+          <!-- Profile Card Header -->
+          <div class="flex flex-col sm:flex-row items-center gap-5 p-5 rounded-2xl bg-slate-900/60 border border-slate-800">
+            <img
+              v-if="userDetailsData.user?.photo_url"
+              :src="userDetailsData.user.photo_url"
+              :alt="userDetailsData.user.first_name"
+              class="w-16 h-16 rounded-2xl object-cover border-2 border-indigo-500/40 shadow-lg"
+            />
+            <div
+              v-else
+              class="w-16 h-16 rounded-2xl bg-gradient-to-tr from-indigo-600 to-purple-600 border-2 border-indigo-400/40 flex items-center justify-center text-white font-black text-xl shadow-lg shrink-0"
+            >
+              {{ userDetailsData.user?.first_name?.charAt(0) || 'U' }}
+            </div>
+
+            <div class="flex-1 text-center sm:text-left space-y-1">
+              <div class="flex flex-wrap items-center justify-center sm:justify-start gap-2">
+                <h4 class="text-base font-extrabold text-white">
+                  {{ userDetailsData.user?.first_name }} {{ userDetailsData.user?.last_name || '' }}
+                </h4>
+                <span
+                  class="px-2.5 py-0.5 rounded-lg text-[10px] font-black uppercase tracking-wider border"
+                  :class="userDetailsData.user?.is_active ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30' : 'bg-red-500/15 text-red-300 border-red-500/30'"
+                >
+                  {{ userDetailsData.user?.is_active ? 'Active' : 'Inactive' }}
+                </span>
+              </div>
+              <p class="text-xs font-mono text-indigo-300">@{{ userDetailsData.user?.username || 'no_username' }}</p>
+              <p class="text-[11px] text-slate-400 font-mono">Telegram ID: <span class="text-slate-200 font-bold">{{ userDetailsData.user?.telegram_user_id }}</span></p>
+            </div>
+
+            <div class="shrink-0 text-center sm:text-right">
+              <span class="inline-block px-3 py-1 rounded-xl bg-indigo-500/20 text-indigo-300 font-extrabold text-xs border border-indigo-500/30 uppercase">
+                {{ userDetailsData.user?.role || 'EMPLOYEE' }}
+              </span>
+              <p class="text-[10px] text-slate-400 mt-1">Joined: {{ formatDate(userDetailsData.user?.created_at) }}</p>
+            </div>
+          </div>
+
+          <!-- Total Check-ins Stats Grid -->
+          <div class="grid grid-cols-2 gap-4">
+            <div class="p-4 rounded-2xl bg-slate-900/40 border border-slate-800 text-center space-y-1">
+              <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total Check-In Logs</span>
+              <p class="text-2xl font-black text-emerald-400">{{ userDetailsData.totalLogs || 0 }}</p>
+            </div>
+            <div class="p-4 rounded-2xl bg-slate-900/40 border border-slate-800 text-center space-y-1">
+              <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Registered Address</span>
+              <p class="text-xs font-semibold text-slate-300 truncate max-w-[200px] mx-auto">{{ userDetailsData.user?.address || 'Not specified' }}</p>
+            </div>
+          </div>
+
+          <!-- Recent Attendance Activity Logs -->
+          <div class="space-y-3">
+            <h4 class="text-xs font-black uppercase tracking-wider text-slate-400 flex items-center gap-2">
+              <Clock class="w-4 h-4 text-indigo-400" />
+              <span>Recent Attendance Activity</span>
+            </h4>
+
+            <div v-if="!userDetailsData.recentLogs || userDetailsData.recentLogs.length === 0" class="p-6 text-center text-xs text-slate-500 font-medium rounded-2xl bg-slate-950 border border-slate-900">
+              No attendance activity recorded for this user yet.
+            </div>
+
+            <div v-else class="space-y-2 max-h-56 overflow-y-auto pr-1">
+              <div
+                v-for="log in userDetailsData.recentLogs"
+                :key="log.id"
+                class="p-3 rounded-2xl bg-slate-950/80 border border-slate-800/80 flex items-center justify-between text-xs gap-3"
+              >
+                <div class="flex items-center gap-3">
+                  <span
+                    class="px-2.5 py-1 rounded-xl text-[10px] font-extrabold uppercase border"
+                    :class="log.action === 'CHECK_IN' ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30' : 'bg-sky-500/15 text-sky-300 border-sky-500/30'"
+                  >
+                    {{ log.action === 'CHECK_IN' ? 'IN' : 'OUT' }}
+                  </span>
+                  <div>
+                    <p class="font-bold text-white text-xs">{{ formatDateTime(log.created_at) }}</p>
+                    <p v-if="log.address" class="text-[10px] text-slate-400 line-clamp-1 max-w-xs">{{ log.address }}</p>
+                  </div>
+                </div>
+
+                <a
+                  v-if="log.photo_url"
+                  :href="log.photo_url"
+                  target="_blank"
+                  class="text-[11px] font-bold text-indigo-400 hover:text-indigo-300 flex items-center gap-1 hover:underline"
+                >
+                  View Photo
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="flex justify-end pt-4 border-t border-slate-800">
+          <button @click="isViewModalOpen = false" class="px-5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 font-bold text-xs border border-slate-800 cursor-pointer">
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2. EDIT USER MODAL -->
+    <div v-if="isEditModalOpen" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
+      <div class="glass-panel w-full max-w-lg rounded-3xl border border-slate-800 p-6 space-y-6 shadow-2xl">
+        <!-- Modal Header -->
+        <div class="flex items-center justify-between border-b border-slate-800 pb-4">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-2xl bg-amber-600/20 border border-amber-500/40 flex items-center justify-center text-amber-400">
+              <Edit3 class="w-5 h-5" />
+            </div>
+            <div>
+              <h3 class="text-lg font-black text-white">Edit User Profile</h3>
+              <p class="text-xs text-slate-400 font-medium">Update account details for #{{ editForm.id }}</p>
+            </div>
+          </div>
+          <button @click="isEditModalOpen = false" class="p-2 rounded-xl bg-slate-900 text-slate-400 hover:text-white border border-slate-800 cursor-pointer">
+            <X class="w-4 h-4" />
+          </button>
+        </div>
+
+        <!-- Form Body -->
+        <form @submit.prevent="handleSaveUser" class="space-y-4">
+          <!-- First Name & Last Name Grid -->
+          <div class="grid grid-cols-2 gap-4">
+            <div class="space-y-1.5">
+              <label class="text-xs font-bold text-slate-300">First Name <span class="text-red-400">*</span></label>
+              <input
+                v-model="editForm.first_name"
+                type="text"
+                required
+                class="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs font-semibold text-white focus:outline-none focus:border-amber-500/80 focus:ring-2 focus:ring-amber-500/20"
+              />
+            </div>
+            <div class="space-y-1.5">
+              <label class="text-xs font-bold text-slate-300">Last Name</label>
+              <input
+                v-model="editForm.last_name"
+                type="text"
+                class="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs font-semibold text-white focus:outline-none focus:border-amber-500/80 focus:ring-2 focus:ring-amber-500/20"
+              />
+            </div>
+          </div>
+
+          <!-- Telegram Username -->
+          <div class="space-y-1.5">
+            <label class="text-xs font-bold text-slate-300">Telegram Username</label>
+            <div class="relative">
+              <span class="absolute left-3.5 top-2.5 text-slate-500 font-mono text-xs">@</span>
+              <input
+                v-model="editForm.username"
+                type="text"
+                placeholder="username"
+                class="w-full pl-8 pr-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs font-semibold text-white focus:outline-none focus:border-amber-500/80 focus:ring-2 focus:ring-amber-500/20"
+              />
+            </div>
+          </div>
+
+          <!-- Department / Role Dropdown -->
+          <div class="space-y-1.5">
+            <label class="text-xs font-bold text-slate-300">Department / Role</label>
+            <select
+              v-model="editForm.role"
+              class="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs font-bold text-white focus:outline-none focus:border-amber-500/80 focus:ring-2 focus:ring-amber-500/20 cursor-pointer"
+            >
+              <option v-for="dept in adminStore.departments" :key="dept.id" :value="dept.name" class="bg-slate-900">
+                {{ dept.name }}
+              </option>
+              <option v-if="editForm.role && !adminStore.departments.some(d => d.name.toUpperCase() === editForm.role.toUpperCase())" :value="editForm.role" class="bg-slate-900">
+                {{ editForm.role }}
+              </option>
+            </select>
+          </div>
+
+          <!-- Address -->
+          <div class="space-y-1.5">
+            <label class="text-xs font-bold text-slate-300">Registered Address</label>
+            <textarea
+              v-model="editForm.address"
+              rows="2"
+              placeholder="Physical office / work location address"
+              class="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs font-medium text-white focus:outline-none focus:border-amber-500/80 focus:ring-2 focus:ring-amber-500/20"
+            ></textarea>
+          </div>
+
+          <!-- Account Active Status Toggle -->
+          <div class="flex items-center justify-between p-3.5 rounded-xl bg-slate-950 border border-slate-800">
+            <div>
+              <span class="text-xs font-bold text-white">Account Status</span>
+              <p class="text-[11px] text-slate-400">Allow or restrict user access to attendance check-in</p>
+            </div>
+            <label class="relative inline-flex items-center cursor-pointer">
+              <input type="checkbox" v-model="editForm.is_active" class="sr-only peer" />
+              <div class="w-11 h-6 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
+            </label>
+          </div>
+
+          <!-- Actions -->
+          <div class="flex items-center justify-end gap-3 pt-3 border-t border-slate-800">
+            <button
+              type="button"
+              @click="isEditModalOpen = false"
+              class="px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 font-bold text-xs border border-slate-800 cursor-pointer"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              :disabled="isSavingUser"
+              class="px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs transition-all shadow-md active:scale-95 disabled:opacity-50 flex items-center gap-2 cursor-pointer"
+            >
+              <Loader2 v-if="isSavingUser" class="w-4 h-4 animate-spin" />
+              <span>Save Changes</span>
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- 3. DELETE USER CONFIRMATION MODAL -->
+    <div v-if="isDeleteModalOpen" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
+      <div class="glass-panel w-full max-w-md rounded-3xl border border-red-500/30 p-6 space-y-6 shadow-2xl">
+        <!-- Modal Header -->
+        <div class="flex items-center gap-3">
+          <div class="w-12 h-12 rounded-2xl bg-red-500/20 border border-red-500/40 flex items-center justify-center text-red-400 shrink-0">
+            <Trash2 class="w-6 h-6" />
+          </div>
+          <div>
+            <h3 class="text-lg font-black text-white">Delete User Account?</h3>
+            <p class="text-xs text-slate-400 font-medium">This action cannot be undone</p>
+          </div>
+        </div>
+
+        <p class="text-xs text-slate-300 leading-relaxed bg-slate-950 p-4 rounded-2xl border border-slate-800">
+          Are you sure you want to delete user <strong class="text-white font-black">{{ deletingUser?.first_name }} {{ deletingUser?.last_name || '' }}</strong> (ID: #{{ deletingUser?.id }})? This will permanently remove their profile and attendance history logs.
+        </p>
+
+        <!-- Actions -->
+        <div class="flex items-center justify-end gap-3 pt-2">
+          <button
+            @click="isDeleteModalOpen = false"
+            class="px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 font-bold text-xs border border-slate-800 cursor-pointer"
+          >
+            Cancel
+          </button>
+          <button
+            @click="handleConfirmDelete"
+            :disabled="isDeleting"
+            class="px-5 py-2.5 rounded-xl bg-red-500 hover:bg-red-600 text-white font-black text-xs transition-all shadow-md active:scale-95 disabled:opacity-50 flex items-center gap-2 cursor-pointer"
+          >
+            <Loader2 v-if="isDeleting" class="w-4 h-4 animate-spin" />
+            <span>Yes, Delete User</span>
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { RefreshCw, Loader2, Users, Building2, Search, CheckCircle2, AlertCircle, ChevronDown, X } from 'lucide-vue-next';
+import {
+  RefreshCw,
+  Loader2,
+  Users,
+  Building2,
+  Search,
+  CheckCircle2,
+  AlertCircle,
+  ChevronDown,
+  X,
+  Eye,
+  Edit3,
+  Trash2,
+  UserCheck,
+  UserX,
+  Clock,
+} from 'lucide-vue-next';
 import { useAdminStore } from '../../stores/admin.store';
 import type { AdminUser } from '../../types/admin';
 
@@ -262,7 +606,32 @@ const router = useRouter();
 const adminStore = useAdminStore();
 
 const updatingUserId = ref<number | null>(null);
+const togglingUserId = ref<number | null>(null);
 const editingRoles = ref<Record<number, string>>({});
+
+// View User Modal State
+const isViewModalOpen = ref(false);
+const viewingUser = ref<AdminUser | null>(null);
+const isLoadingUserDetails = ref(false);
+const userDetailsData = ref<{ user: AdminUser; totalLogs: number; recentLogs: any[] } | null>(null);
+
+// Edit User Modal State
+const isEditModalOpen = ref(false);
+const isSavingUser = ref(false);
+const editForm = ref({
+  id: 0,
+  first_name: '',
+  last_name: '',
+  username: '',
+  role: 'EMPLOYEE',
+  address: '',
+  is_active: true,
+});
+
+// Delete User Modal State
+const isDeleteModalOpen = ref(false);
+const deletingUser = ref<AdminUser | null>(null);
+const isDeleting = ref(false);
 
 const currentEmployeePage = computed(() => {
   const limit = adminStore.employeeFilters?.limit || 10;
@@ -317,6 +686,74 @@ async function onRoleSelectChange(user: AdminUser, newRole: string) {
   updatingUserId.value = null;
 }
 
+async function handleToggleStatus(user: AdminUser) {
+  togglingUserId.value = user.id;
+  await adminStore.toggleUserStatus(user.id, !user.is_active);
+  togglingUserId.value = null;
+}
+
+async function openViewUserModal(user: AdminUser) {
+  viewingUser.value = user;
+  isViewModalOpen.value = true;
+  isLoadingUserDetails.value = true;
+  userDetailsData.value = null;
+
+  const data = await adminStore.fetchUserDetails(user.id);
+  userDetailsData.value = data;
+  isLoadingUserDetails.value = false;
+}
+
+function openEditUserModal(user: AdminUser) {
+  editForm.value = {
+    id: user.id,
+    first_name: user.first_name || '',
+    last_name: user.last_name || '',
+    username: user.username || '',
+    role: user.role || 'EMPLOYEE',
+    address: user.address || '',
+    is_active: !!user.is_active,
+  };
+  isEditModalOpen.value = true;
+}
+
+async function handleSaveUser() {
+  if (!editForm.value.first_name.trim()) return;
+  isSavingUser.value = true;
+
+  const ok = await adminStore.updateUser(editForm.value.id, {
+    first_name: editForm.value.first_name,
+    last_name: editForm.value.last_name,
+    username: editForm.value.username,
+    role: editForm.value.role,
+    address: editForm.value.address,
+    is_active: editForm.value.is_active,
+  });
+
+  isSavingUser.value = false;
+  if (ok) {
+    isEditModalOpen.value = false;
+    adminStore.fetchEmployees();
+    adminStore.fetchDepartments();
+  }
+}
+
+function openDeleteConfirmModal(user: AdminUser) {
+  deletingUser.value = user;
+  isDeleteModalOpen.value = true;
+}
+
+async function handleConfirmDelete() {
+  if (!deletingUser.value) return;
+  isDeleting.value = true;
+  const ok = await adminStore.deleteUser(deletingUser.value.id);
+  isDeleting.value = false;
+  if (ok) {
+    isDeleteModalOpen.value = false;
+    deletingUser.value = null;
+    adminStore.fetchEmployees();
+  }
+}
+
 function getUserStatusToday(user: AdminUser) {
   if (!user.todayCheckIn) {
     return {
@@ -359,6 +796,19 @@ function formatDate(dateStr: string): string {
     month: 'short',
     day: 'numeric',
     year: 'numeric',
+  });
+}
+
+function formatDateTime(dateStr: string): string {
+  if (!dateStr) return '';
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return dateStr;
+  return d.toLocaleString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,
   });
 }
 

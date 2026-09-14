@@ -165,6 +165,74 @@ export const useAdminStore = defineStore('admin', () => {
     }
   }
 
+  async function toggleUserStatus(userId: number, is_active: boolean): Promise<boolean> {
+    error.value = null;
+    successMessage.value = null;
+    try {
+      const updatedUser = await adminApi.toggleUserStatus(userId, is_active);
+      if (updatedUser) {
+        const target = employees.value.find((e) => e.id === userId);
+        if (target) {
+          target.is_active = updatedUser.is_active;
+        }
+        successMessage.value = `User status updated to ${updatedUser.is_active ? 'ACTIVE' : 'DEACTIVATED'}!`;
+        return true;
+      }
+      return false;
+    } catch (err: any) {
+      error.value = err.message || 'Failed to toggle user status';
+      return false;
+    }
+  }
+
+  async function updateUser(userId: number, data: { first_name?: string; last_name?: string; username?: string; role?: string; address?: string; is_active?: boolean }): Promise<boolean> {
+    error.value = null;
+    successMessage.value = null;
+    try {
+      const updatedUser = await adminApi.updateUser(userId, data);
+      if (updatedUser) {
+        const index = employees.value.findIndex((e) => e.id === userId);
+        if (index !== -1) {
+          employees.value[index] = { ...employees.value[index], ...updatedUser };
+        }
+        successMessage.value = `User profile for ${updatedUser.first_name} updated successfully!`;
+        return true;
+      }
+      return false;
+    } catch (err: any) {
+      error.value = err.message || 'Failed to update user profile';
+      return false;
+    }
+  }
+
+  async function deleteUser(userId: number): Promise<boolean> {
+    error.value = null;
+    successMessage.value = null;
+    try {
+      const res = await adminApi.deleteUser(userId);
+      if (res && res.success) {
+        employees.value = employees.value.filter((e) => e.id !== userId);
+        totalEmployeeRecords.value = Math.max(0, totalEmployeeRecords.value - 1);
+        successMessage.value = res.message || 'User deleted successfully!';
+        return true;
+      }
+      return false;
+    } catch (err: any) {
+      error.value = err.message || 'Failed to delete user';
+      return false;
+    }
+  }
+
+  async function fetchUserDetails(userId: number): Promise<{ user: AdminUser; totalLogs: number; recentLogs: any[] } | null> {
+    error.value = null;
+    try {
+      return await adminApi.getUserDetails(userId);
+    } catch (err: any) {
+      error.value = err.message || 'Failed to fetch user details';
+      return null;
+    }
+  }
+
   async function fetchAttendanceLogs() {
     isLoadingLogs.value = true;
     error.value = null;
@@ -294,6 +362,23 @@ export const useAdminStore = defineStore('admin', () => {
     }
   }
 
+  async function updateDepartment(id: string, dto: { name?: string; description?: string; color?: string }): Promise<boolean> {
+    error.value = null;
+    successMessage.value = null;
+    try {
+      const res = await adminApi.updateDepartment(id, dto);
+      if (Array.isArray(res)) {
+        departments.value = res;
+        successMessage.value = 'Department updated successfully!';
+        return true;
+      }
+      return false;
+    } catch (err: any) {
+      error.value = err.message || 'Failed to update department';
+      return false;
+    }
+  }
+
   return {
     stats,
     settings,
@@ -321,10 +406,15 @@ export const useAdminStore = defineStore('admin', () => {
     saveSettings,
     uploadLogo,
     updateUserRole,
+    toggleUserStatus,
+    updateUser,
+    deleteUser,
+    fetchUserDetails,
     fetchAttendanceLogs,
     fetchEmployees,
     fetchDepartments,
     createDepartment,
+    updateDepartment,
     deleteDepartment,
     openPhotoModal,
     closePhotoModal,

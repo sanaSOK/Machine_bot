@@ -200,6 +200,44 @@ export class AdminService implements OnModuleInit {
     return this.getDepartments();
   }
 
+  async updateDepartment(idOrName: string, dto: { name?: string; description?: string; color?: string }): Promise<DepartmentItem[]> {
+    const numericId = parseInt(idOrName, 10);
+    let dept: Department | null = null;
+    if (!isNaN(numericId)) {
+      dept = await this.departmentRepository.findOne({ where: { id: numericId } });
+    } else {
+      dept = await this.departmentRepository.findOne({ where: { name: idOrName } });
+    }
+
+    if (!dept) {
+      throw new Error('Department not found');
+    }
+
+    if (dto.name) {
+      const cleanName = dto.name.trim().toUpperCase();
+      if (cleanName && cleanName !== dept.name) {
+        const oldName = dept.name;
+        dept.name = cleanName;
+        const usersToUpdate = await this.userRepository.find({ where: { role: oldName } });
+        for (const u of usersToUpdate) {
+          u.role = cleanName;
+          await this.userRepository.save(u);
+        }
+      }
+    }
+
+    if (dto.description !== undefined) {
+      dept.description = dto.description.trim();
+    }
+
+    if (dto.color) {
+      dept.color = dto.color;
+    }
+
+    await this.departmentRepository.save(dept);
+    return this.getDepartments();
+  }
+
   async updateUserRole(userId: number, role: string) {
     const user = await this.userRepository.findOne({ where: { id: userId } });
     if (!user) {
@@ -220,6 +258,78 @@ export class AdminService implements OnModuleInit {
     }
 
     return this.userRepository.save(user);
+  }
+
+  async toggleUserStatus(userId: number, isActive: boolean) {
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    if (!user) {
+      throw new Error(`User with ID ${userId} not found`);
+    }
+    user.is_active = isActive;
+    return this.userRepository.save(user);
+  }
+
+  async updateUser(userId: number, dto: { first_name?: string; last_name?: string; username?: string; role?: string; address?: string; is_active?: boolean }) {
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    if (!user) {
+      throw new Error(`User with ID ${userId} not found`);
+    }
+
+    if (dto.first_name !== undefined) user.first_name = dto.first_name.trim();
+    if (dto.last_name !== undefined) user.last_name = dto.last_name ? dto.last_name.trim() : null;
+    if (dto.username !== undefined) user.username = dto.username ? dto.username.trim().replace(/^@/, '') : null;
+    if (dto.address !== undefined) user.address = dto.address ? dto.address.trim() : null;
+    if (dto.is_active !== undefined) user.is_active = !!dto.is_active;
+
+    if (dto.role) {
+      const cleanRole = dto.role.trim().toUpperCase() || 'EMPLOYEE';
+      user.role = cleanRole;
+      await this.seedDefaultDepartments();
+      const existing = await this.departmentRepository.findOne({ where: { name: cleanRole } });
+      if (!existing) {
+        const newDept = this.departmentRepository.create({
+          name: cleanRole,
+          description: `${cleanRole} Department`,
+          color: '#6366f1',
+        });
+        await this.departmentRepository.save(newDept);
+      }
+    }
+
+    return this.userRepository.save(user);
+  }
+
+  async deleteUser(userId: number) {
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    if (!user) {
+      throw new Error(`User with ID ${userId} not found`);
+    }
+    await this.attendanceRepository.delete({ user_id: userId });
+    await this.userRepository.remove(user);
+    return { success: true, message: `User #${userId} deleted successfully` };
+  }
+
+  async getUserDetails(userId: number) {
+    const user = await this.userRepository.findOne({
+      where: { id: userId },
+    });
+    if (!user) {
+      throw new Error(`User with ID ${userId} not found`);
+    }
+
+    const recentLogs = await this.attendanceRepository.find({
+      where: { user_id: userId },
+      order: { created_at: 'DESC' },
+      take: 20,
+    });
+
+    const totalLogs = await this.attendanceRepository.count({ where: { user_id: userId } });
+
+    return {
+      user,
+      totalLogs,
+      recentLogs,
+    };
   }
 
   async getStats() {
