@@ -2,75 +2,57 @@ import {
   Controller,
   Get,
   Post,
-  Patch,
   Delete,
   Param,
   Body,
-  UseInterceptors,
-  UploadedFile,
+  Query,
+  UseGuards,
+  ParseIntPipe,
+  Put,
 } from '@nestjs/common';
-import { FileInterceptor } from '@nestjs/platform-express';
-import { diskStorage } from 'multer';
-import { extname } from 'path';
-import { SuperAdminService, AdminOrgItem } from './super-admin.service';
+import { SuperAdminService } from './super-admin.service';
+import { CreateAdminDto } from './dto/create-admin.dto';
+import { UpdateAdminStatusDto } from './dto/update-admin-status.dto';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { RolesGuard } from '../common/guards/roles.guard';
+import { Roles, AdminRole } from '../common/decorators/roles.decorator';
 
 @Controller('super-admin')
+@UseGuards(JwtAuthGuard, RolesGuard)
 export class SuperAdminController {
   constructor(private readonly superAdminService: SuperAdminService) {}
 
-  @Get('stats')
-  async getStats() {
-    return this.superAdminService.getSuperAdminStats();
+  @Post('admins')
+  @Roles(AdminRole.SUPER_ADMIN)
+  async createAdmin(@Body() dto: CreateAdminDto) {
+    return this.superAdminService.createAdmin(dto);
   }
 
   @Get('admins')
-  async getAdminOrgs() {
-    return this.superAdminService.getAdminOrgs();
+  @Roles(AdminRole.SUPER_ADMIN)
+  async getAdmins(@Query('status') status?: string) {
+    const statusNum = status ? parseInt(status, 10) : undefined;
+    return this.superAdminService.getAdmins(statusNum);
   }
 
-  @Post('admins')
-  async createAdminOrg(@Body() dto: Partial<AdminOrgItem>) {
-    return this.superAdminService.createAdminOrg(dto);
-  }
-
-  @Post('admins/upload-logo')
-  @UseInterceptors(
-    FileInterceptor('logo', {
-      storage: diskStorage({
-        destination: './uploads',
-        filename: (req, file, cb) => {
-          const fileExtName = extname(file.originalname) || '.png';
-          cb(null, `org_logo_${Date.now()}${fileExtName}`);
-        },
-      }),
-    }),
-  )
-  async uploadOrgLogo(@UploadedFile() file: any) {
-    if (!file) {
-      return { error: 'No image file provided' };
-    }
-    const logoUrl = `/uploads/${file.filename}?v=${Date.now()}`;
-    return { logoUrl, message: 'Organization logo image uploaded successfully' };
-  }
-
-  @Patch('admins/:id')
-  async updateAdminOrg(
-    @Param('id') id: string,
-    @Body() dto: Partial<AdminOrgItem>,
+  @Put('admins/:id/status')
+  @Roles(AdminRole.SUPER_ADMIN)
+  async updateAdminStatus(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: UpdateAdminStatusDto,
   ) {
-    return this.superAdminService.updateAdminOrg(id, dto);
-  }
-
-  @Patch('admins/:id/status')
-  async toggleAdminStatus(
-    @Param('id') id: string,
-    @Body('status') status: 'ACTIVE' | 'SUSPENDED',
-  ) {
-    return this.superAdminService.toggleAdminOrgStatus(id, status);
+    return this.superAdminService.updateAdminStatus(id, dto.is_active);
   }
 
   @Delete('admins/:id')
-  async deleteAdminOrg(@Param('id') id: string) {
-    return this.superAdminService.deleteAdminOrg(id);
+  @Roles(AdminRole.SUPER_ADMIN)
+  async deleteAdmin(@Param('id', ParseIntPipe) id: number) {
+    return this.superAdminService.deleteAdmin(id);
+  }
+
+  @Get('stats')
+  @Roles(AdminRole.SUPER_ADMIN)
+  async getStats() {
+    return this.superAdminService.getSuperAdminStats();
   }
 }

@@ -1,84 +1,164 @@
-import { Injectable, OnModuleInit } from '@nestjs/common';
+import { Injectable, ConflictException, NotFoundException, Logger, OnModuleInit } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between } from 'typeorm';
+import { AdminUser } from '../users/admin-user.entity';
 import { User } from '../users/user.entity';
 import { Attendance, AttendanceAction } from '../attendance/attendance.entity';
-import { AdminOrganization } from './admin-organization.entity';
-import { AdminService } from '../admin/admin.service';
-
-export interface AdminOrgItem {
-  id: string;
-  companyName: string;
-  adminUsername: string;
-  contactEmail: string;
-  logoUrl?: string;
-  status: 'ACTIVE' | 'SUSPENDED';
-  workStartTime: string;
-  workEndTime: string;
-  gracePeriodMinutes: number;
-  telegramBotToken?: string;
-  telegramNotificationChatId?: string;
-  createdAt: string;
-  totalEmployees?: number;
-  todayCheckIns?: number;
-}
+import { CreateAdminDto } from './dto/create-admin.dto';
+import { AdminResponseDto } from './dto/admin-response.dto';
+import { AdminRole } from '../common/decorators/roles.decorator';
+import { PasswordUtil } from '../common/utils/password.util';
+import { MailService } from '../mail/mail.service';
+import * as crypto from 'crypto';
 
 export interface SuperAdminStats {
-  totalAdminOrgs: number;
-  activeAdminOrgs: number;
-  suspendedAdminOrgs: number;
-  totalSystemEmployees: number;
+  totalAdmins: number;
+  totalActiveStaff: number;
   totalTodayCheckIns: number;
 }
 
 @Injectable()
 export class SuperAdminService implements OnModuleInit {
+  private readonly logger = new Logger(SuperAdminService.name);
+
   constructor(
-    @InjectRepository(AdminOrganization, 'superAdminConnection')
-    private readonly adminOrgRepository: Repository<AdminOrganization>,
+    @InjectRepository(AdminUser)
+    private readonly adminUserRepository: Repository<AdminUser>,
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
     @InjectRepository(Attendance)
     private readonly attendanceRepository: Repository<Attendance>,
-    private readonly adminService: AdminService,
+    private readonly mailService: MailService,
   ) {}
 
   async onModuleInit() {
-    await this.seedDefaultAdminOrg();
+    await this.seedDefaultSuperAdmin();
   }
 
-  private async seedDefaultAdminOrg() {
+  /**
+   * Auto seed init @Account_Super_Admin
+   * @bydefualt:
+   * email: superadmin@eroxii.com
+   * password: Admin@1234
+   */
+  async seedDefaultSuperAdmin() {
     try {
-      const count = await this.adminOrgRepository.count();
-      if (count === 0) {
-        const currentSettings = this.adminService.getSettings();
-        const defaultOrg = this.adminOrgRepository.create({
-          companyName: currentSettings.companyName || 'Eroxii Enterprise',
-          adminUsername: 'eroxii_admin',
-          contactEmail: 'admin@eroxii.com',
-          logoUrl: currentSettings.logoUrl || '/logo.png',
-          status: 'ACTIVE',
-          workStartTime: currentSettings.workStartTime || '08:00',
-          workEndTime: currentSettings.workEndTime || '17:00',
-          gracePeriodMinutes: currentSettings.gracePeriodMinutes ?? 15,
-          telegramBotToken: currentSettings.telegramBotToken || '',
-          telegramNotificationChatId: currentSettings.telegramNotificationChatId || '',
+      const existingSuperAdmin = await this.adminUserRepository.findOne({
+        where: { role: AdminRole.SUPER_ADMIN },
+      });
+
+      if (!existingSuperAdmin) {
+        const rootSuperAdmin = this.adminUserRepository.create({
+          fullname: 'Super Admin',
+          email: 'superadmin@eroxii.com',
+          password: PasswordUtil.hashPassword('Admin@1234'),
+          role: AdminRole.SUPER_ADMIN,
+          is_active: 1,
+          is_verified: 1,
         });
-        await this.adminOrgRepository.save(defaultOrg);
+
+        await this.adminUserRepository.save(rootSuperAdmin);
       }
-    } catch (e) {
-      console.warn('Seed default admin organization error:', e);
+    } catch (error) {
+      this.logger.error('Failed seed default Super Admin:', error);
     }
   }
 
+  async createAdmin(dto: CreateAdminDto): Promise<AdminResponseDto> {
+    const cleanEmail = dto.email.trim().toLowerCase();
+
+    const existingUser = await this.adminUserRepository.findOne({
+      where: { email: cleanEmail },
+    });
+
+    if (existingUser) {
+      throw new ConflictException(`An Admin with email "${cleanEmail}" already exists`);
+    }
+
+    const hashedPassword = PasswordUtil.hashPassword(dto.password);
+    const rawToken = crypto.randomBytes(32).toString('hex');
+    const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
+    const expires = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes expiration
+
+    const newAdmin = this.adminUserRepository.create({
+      fullname: dto.fullname.trim(),
+      email: cleanEmail,
+      password: hashedPassword,
+      role: AdminRole.ADMIN, 
+      is_active: 1,
+      is_verified: 0,
+      verification_token_hash: tokenHash,
+      verification_expires: expires,
+      profile_url: dto.profile_url?.trim() || null,
+    });
+
+    const saved = await this.adminUserRepository.save(newAdmin);
+
+    // Send verification email
+    await this.mailService.sendVerificationEmail(saved.email, rawToken);
+
+    return this.toResponseDto(saved);
+  }
+
+  async getAdmins(status?: number): Promise<AdminResponseDto[]> {
+    const where: any = { role: AdminRole.ADMIN };
+    if (status !== undefined && status !== null && !isNaN(status)) {
+      where.is_active = status;
+    }
+
+    const admins = await this.adminUserRepository.find({
+      where,
+      order: { created_at: 'DESC' },
+    });
+
+    return admins.map((admin) => this.toResponseDto(admin));
+  }
+
+  async updateAdminStatus(id: number, isActive: number): Promise<AdminResponseDto> {
+    const admin = await this.adminUserRepository.findOne({
+      where: { id },
+    });
+
+    if (!admin) {
+      throw new NotFoundException(`Admin account with ID ${id} not found`);
+    }
+
+    if (admin.role === AdminRole.SUPER_ADMIN) {
+      throw new ConflictException('Cannot change status of a Super Admin account');
+    }
+
+    admin.is_active = isActive;
+    const updated = await this.adminUserRepository.save(admin);
+    return this.toResponseDto(updated);
+  }
+
+
+  async deleteAdmin(id: number): Promise<{ success: boolean; message: string }> {
+    const admin = await this.adminUserRepository.findOne({
+      where: { id },
+    });
+
+    if (!admin) {
+      throw new NotFoundException(`Admin account with ID ${id} not found`);
+    }
+
+    if (admin.role === AdminRole.SUPER_ADMIN) {
+      throw new ConflictException('Cannot delete a Super Admin account');
+    }
+
+    await this.adminUserRepository.delete(id);
+    return { success: true, message: `Admin account "${admin.email}" successfully deleted` };
+  }
+
+
   async getSuperAdminStats(): Promise<SuperAdminStats> {
-    await this.seedDefaultAdminOrg();
+    const totalAdmins = await this.adminUserRepository.count({
+      where: { role: AdminRole.ADMIN },
+    });
 
-    const totalAdminOrgs = await this.adminOrgRepository.count();
-    const activeAdminOrgs = await this.adminOrgRepository.count({ where: { status: 'ACTIVE' } });
-    const suspendedAdminOrgs = await this.adminOrgRepository.count({ where: { status: 'SUSPENDED' } });
-
-    const totalSystemEmployees = await this.userRepository.count({ where: { is_active: true } });
+    const totalActiveStaff = await this.userRepository.count({
+      where: { is_active: true },
+    });
 
     const now = new Date();
     const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
@@ -92,120 +172,23 @@ export class SuperAdminService implements OnModuleInit {
     });
 
     return {
-      totalAdminOrgs,
-      activeAdminOrgs,
-      suspendedAdminOrgs,
-      totalSystemEmployees,
+      totalAdmins,
+      totalActiveStaff,
       totalTodayCheckIns,
     };
   }
 
-  async getAdminOrgs(): Promise<AdminOrgItem[]> {
-    await this.seedDefaultAdminOrg();
-
-    const orgEntities = await this.adminOrgRepository.find({ order: { id: 'ASC' } });
-    const totalEmployees = await this.userRepository.count({ where: { is_active: true } });
-
-    const now = new Date();
-    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
-    const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
-
-    const todayCheckIns = await this.attendanceRepository.count({
-      where: {
-        action: AttendanceAction.CHECK_IN,
-        created_at: Between(startOfDay, endOfDay),
-      },
-    });
-
-    return orgEntities.map((org, index) => {
-      const isEroxii = index === 0 || org.companyName.toLowerCase().includes('eroxii');
-      return {
-        id: String(org.id),
-        companyName: org.companyName,
-        adminUsername: org.adminUsername,
-        contactEmail: org.contactEmail || '',
-        logoUrl: org.logoUrl || '/logo.png',
-        status: org.status || 'ACTIVE',
-        workStartTime: org.workStartTime || '08:00',
-        workEndTime: org.workEndTime || '17:00',
-        gracePeriodMinutes: org.gracePeriodMinutes ?? 15,
-        telegramBotToken: org.telegramBotToken || '',
-        telegramNotificationChatId: org.telegramNotificationChatId || '',
-        createdAt: org.createdAt ? org.createdAt.toISOString() : new Date().toISOString(),
-        totalEmployees: isEroxii ? totalEmployees : 0,
-        todayCheckIns: isEroxii ? todayCheckIns : 0,
-      };
-    });
-  }
-
-  async createAdminOrg(dto: Partial<AdminOrgItem>): Promise<AdminOrgItem[]> {
-    const companyName = (dto.companyName || '').trim();
-    if (!companyName) {
-      throw new Error('Company name is required');
-    }
-
-    const cleanUsername = (dto.adminUsername || `${companyName.toLowerCase().replace(/\s+/g, '_')}_admin`).trim();
-
-    const existing = await this.adminOrgRepository.findOne({
-      where: [{ companyName }, { adminUsername: cleanUsername }],
-    });
-
-    if (existing) {
-      throw new Error(`Admin Organization "${companyName}" or username "${cleanUsername}" already exists`);
-    }
-
-    const newOrg = this.adminOrgRepository.create({
-      companyName,
-      adminUsername: cleanUsername,
-      contactEmail: (dto.contactEmail || `admin@${companyName.toLowerCase().replace(/\s+/g, '')}.com`).trim(),
-      logoUrl: dto.logoUrl || '/logo.png',
-      status: dto.status || 'ACTIVE',
-      workStartTime: dto.workStartTime || '08:00',
-      workEndTime: dto.workEndTime || '17:00',
-      gracePeriodMinutes: dto.gracePeriodMinutes ?? 15,
-      telegramBotToken: dto.telegramBotToken || '',
-      telegramNotificationChatId: dto.telegramNotificationChatId || '',
-    });
-
-    await this.adminOrgRepository.save(newOrg);
-    return this.getAdminOrgs();
-  }
-
-  async updateAdminOrg(id: string, dto: Partial<AdminOrgItem>): Promise<AdminOrgItem[]> {
-    const numericId = parseInt(id, 10);
-    const org = await this.adminOrgRepository.findOne({ where: { id: numericId } });
-    if (!org) {
-      throw new Error(`Admin Organization with ID ${id} not found`);
-    }
-
-    if (dto.companyName) org.companyName = dto.companyName.trim();
-    if (dto.adminUsername) org.adminUsername = dto.adminUsername.trim();
-    if (dto.contactEmail !== undefined) org.contactEmail = dto.contactEmail;
-    if (dto.logoUrl !== undefined) org.logoUrl = dto.logoUrl;
-    if (dto.status) {
-      org.status = dto.status;
-      this.adminService.updateSettings({
-        status: dto.status,
-        isSuspended: dto.status === 'SUSPENDED',
-      } as any);
-    }
-    if (dto.workStartTime) org.workStartTime = dto.workStartTime;
-    if (dto.workEndTime) org.workEndTime = dto.workEndTime;
-    if (dto.gracePeriodMinutes !== undefined) org.gracePeriodMinutes = dto.gracePeriodMinutes;
-    if (dto.telegramBotToken !== undefined) org.telegramBotToken = dto.telegramBotToken;
-    if (dto.telegramNotificationChatId !== undefined) org.telegramNotificationChatId = dto.telegramNotificationChatId;
-
-    await this.adminOrgRepository.save(org);
-    return this.getAdminOrgs();
-  }
-
-  async toggleAdminOrgStatus(id: string, status: 'ACTIVE' | 'SUSPENDED'): Promise<AdminOrgItem[]> {
-    return this.updateAdminOrg(id, { status });
-  }
-
-  async deleteAdminOrg(id: string): Promise<AdminOrgItem[]> {
-    const numericId = parseInt(id, 10);
-    await this.adminOrgRepository.delete({ id: numericId });
-    return this.getAdminOrgs();
+  private toResponseDto(entity: AdminUser): AdminResponseDto {
+    return {
+      id: entity.id,
+      fullname: entity.fullname,
+      email: entity.email,
+      profile_url: entity.profile_url,
+      role: entity.role,
+      is_active: entity.is_active,
+      is_verified: entity.is_verified,
+      created_at: entity.created_at,
+      updated_at: entity.updated_at,
+    };
   }
 }
