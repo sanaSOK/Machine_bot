@@ -4,6 +4,8 @@ import { BadRequestException } from '@nestjs/common';
 import { AttendanceService } from './attendance.service';
 import { Attendance, AttendanceAction } from './attendance.entity';
 import { User } from '../users/user.entity';
+import { TelegramService } from '../telegram/telegram.service';
+import { AdminService } from '../admin/admin.service';
 
 describe('AttendanceService', () => {
   let service: AttendanceService;
@@ -18,6 +20,8 @@ describe('AttendanceService', () => {
     username: 'janedoe',
     photo_url: null,
     address: 'Phnom Penh, Cambodia',
+    department_id: 1,
+    phone: null,
     is_active: true,
     role: 'EMPLOYEE',
     created_at: new Date(),
@@ -59,6 +63,19 @@ describe('AttendanceService', () => {
         {
           provide: getRepositoryToken(User),
           useValue: userRepositoryMock,
+        },
+        {
+          provide: TelegramService,
+          useValue: {
+            sendAttendanceNotification: jest.fn().mockResolvedValue(true),
+            sendAttendancePhotoNotification: jest.fn().mockResolvedValue(true),
+          },
+        },
+        {
+          provide: AdminService,
+          useValue: {
+            getSettings: jest.fn().mockReturnValue({}),
+          },
         },
       ],
     }).compile();

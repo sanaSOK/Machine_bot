@@ -14,13 +14,13 @@ export enum AttendanceAction {
   CHECK_OUT = 'CHECK_OUT',
 }
 
-@Entity('attendance')
+@Entity('attendances')
 export class Attendance {
   @PrimaryGeneratedColumn()
   id: number;
 
   @Index()
-  @Column({ name: 'user_id', type: 'int' })
+  @Column({ name: 'staff_id', type: 'int' })
   user_id: number;
 
   @Column({
@@ -45,6 +45,6 @@ export class Attendance {
   created_at: Date;
 
   @ManyToOne(() => User, (user) => user.attendances, { onDelete: 'CASCADE' })
-  @JoinColumn({ name: 'user_id' })
+  @JoinColumn({ name: 'staff_id' })
   user: User;
 }
