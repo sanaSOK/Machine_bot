@@ -1,0 +1,17 @@
+FROM node:20-alpine
+
+WORKDIR /app
+
+# Copy package files
+COPY package*.json ./
+
+# Install dependencies (including @nestjs/cli for nest start --watch)
+RUN npm install
+
+# Copy source
+COPY . .
+
+EXPOSE 3000
+
+# Start NestJS in watch mode for development
+CMD ["npm", "run", "start:dev"]
