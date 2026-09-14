@@ -150,7 +150,7 @@ export class AdminService implements OnModuleInit {
     const users = await this.userRepository.find();
 
     return depts.map((d) => {
-      const count = users.filter((u) => (u.role || '').trim().toUpperCase() === d.name.toUpperCase()).length;
+      const count = users.filter((u) => String(u.role || '').trim().toUpperCase() === d.name.toUpperCase()).length;
       return {
         id: String(d.id),
         name: d.name,
