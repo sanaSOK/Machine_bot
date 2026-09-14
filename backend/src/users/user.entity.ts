@@ -8,40 +8,42 @@ import {
 } from 'typeorm';
 import { Attendance } from '../attendance/attendance.entity';
 
-@Entity('users')
+@Entity('staffs')
 export class User {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column({ name: 'telegram_user_id', type: 'varchar', length: 64, unique: true })
-  telegram_user_id: string;
+  @Column({ name: 'department_id', type: 'int', default: 1 })
+  department_id: number;
 
-  @Column({ type: 'varchar', length: 255, nullable: true })
-  username: string | null;
-
-  @Column({ name: 'first_name', type: 'varchar', length: 255 })
+  @Column({ name: 'fullname', type: 'varchar', length: 100 })
   first_name: string;
 
-  @Column({ name: 'last_name', type: 'varchar', length: 255, nullable: true })
-  last_name: string | null;
+  @Column({ name: 'telegram_chat_id', type: 'bigint', nullable: true, unique: true })
+  telegram_user_id: string;
 
-  @Column({ name: 'photo_url', type: 'varchar', length: 512, nullable: true })
+  @Column({ type: 'tinyint', default: 1 })
+  role: string | number;
+
+  @Column({ type: 'varchar', length: 20, nullable: true })
+  phone: string | null;
+
+  @Column({ name: 'profile_url', type: 'varchar', length: 255, nullable: true })
   photo_url: string | null;
-
-  @Column({ type: 'text', nullable: true })
-  address: string | null;
 
   @Column({ name: 'is_active', type: 'boolean', default: true })
   is_active: boolean;
-
-  @Column({ type: 'varchar', length: 64, default: 'EMPLOYEE' })
-  role: string;
 
   @CreateDateColumn({ name: 'created_at' })
   created_at: Date;
 
   @UpdateDateColumn({ name: 'updated_at' })
   updated_at: Date;
+
+  // Unmapped helper fields for existing services
+  last_name?: string | null;
+  username?: string | null;
+  address?: string | null;
 
   @OneToMany(() => Attendance, (attendance) => attendance.user)
   attendances: Attendance[];

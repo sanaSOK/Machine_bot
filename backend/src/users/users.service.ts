@@ -34,10 +34,6 @@ export class UsersService {
 
   async updateUserAddress(userId: number, address: string): Promise<User | null> {
     const user = await this.findById(userId);
-    if (user && address) {
-      user.address = address;
-      return this.userRepository.save(user);
-    }
     return user;
   }
 
@@ -50,13 +46,15 @@ export class UsersService {
       photoUrl = await this.telegramService.getUserProfilePhotoUrl(telegramIdStr);
     }
 
+    const fullName = [telegramUser.first_name, telegramUser.last_name].filter(Boolean).join(' ') || 'Telegram User';
+
     if (!user) {
       user = this.userRepository.create({
         telegram_user_id: telegramIdStr,
-        first_name: telegramUser.first_name || 'Telegram User',
-        last_name: telegramUser.last_name || null,
-        username: telegramUser.username || null,
+        first_name: fullName,
         photo_url: photoUrl,
+        department_id: 1,
+        role: 1,
         is_active: true,
       });
       return this.userRepository.save(user);
@@ -64,16 +62,8 @@ export class UsersService {
 
     // Update profile info if changed
     let updated = false;
-    if (telegramUser.first_name && user.first_name !== telegramUser.first_name) {
-      user.first_name = telegramUser.first_name;
-      updated = true;
-    }
-    if (telegramUser.last_name !== undefined && user.last_name !== telegramUser.last_name) {
-      user.last_name = telegramUser.last_name || null;
-      updated = true;
-    }
-    if (telegramUser.username !== undefined && user.username !== telegramUser.username) {
-      user.username = telegramUser.username || null;
+    if (fullName && user.first_name !== fullName) {
+      user.first_name = fullName;
       updated = true;
     }
     if (photoUrl && user.photo_url !== photoUrl) {
