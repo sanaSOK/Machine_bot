@@ -20,6 +20,7 @@ import { SuperAdminModule } from './super-admin/super-admin.module';
 import { ProfileModule } from './profile/profile.module';
 import { MailModule } from './mail/mail.module';
 import { AppController } from './app.controller';
+import { AdminOrganization } from './super-admin/admin-organization.entity';
 
 @Module({
   imports: [
