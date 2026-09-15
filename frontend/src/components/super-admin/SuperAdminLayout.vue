@@ -39,7 +39,7 @@
                 SUPER ADMIN
               </h1>
               <span class="inline-block text-[9px] font-black uppercase tracking-wider text-amber-300 bg-amber-500/15 border border-amber-500/30 px-2 py-0.5 rounded-full mt-1.5 shadow-sm">
-                Global Console 3333
+                Global Console
               </span>
             </div>
           </div>
@@ -108,7 +108,7 @@
           <span v-if="!isSidebarCollapsed" class="text-slate-400 font-bold text-[11px]">Super Port</span>
           <span class="text-amber-400 font-extrabold flex items-center gap-1.5 text-[11px]">
             <span class="w-2 h-2 rounded-full bg-amber-400 animate-ping"></span>
-            <span v-if="!isSidebarCollapsed">3333 Active</span>
+            <span v-if="!isSidebarCollapsed">5173 Active</span>
           </span>
         </div>
       </div>
@@ -132,7 +132,7 @@
                 SUPER ADMIN
               </h1>
               <span class="inline-block text-[8px] font-black uppercase tracking-wider text-amber-300 bg-amber-500/15 border border-amber-500/30 px-2 py-0.5 rounded-full mt-1">
-                Port 3333
+                Port 5173
               </span>
             </div>
           </div>
@@ -216,7 +216,7 @@
         <div class="flex items-center gap-3">
           <div class="px-3.5 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/30 text-xs font-extrabold text-amber-300 flex items-center gap-2 shadow-inner">
             <span class="w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse"></span>
-            <span>Port 3333 Active</span>
+            <span>Port 5173 Active</span>
           </div>
         </div>
       </header>

@@ -40,6 +40,26 @@ export const adminApi = {
     return response.data;
   },
 
+  async toggleUserStatus(userId: number, is_active: boolean): Promise<AdminUser> {
+    const response = await api.patch<AdminUser>(`/admin/users/${userId}/status`, { is_active });
+    return response.data;
+  },
+
+  async updateUser(userId: number, data: { first_name?: string; last_name?: string; username?: string; role?: string; address?: string; is_active?: boolean }): Promise<AdminUser> {
+    const response = await api.patch<AdminUser>(`/admin/users/${userId}`, data);
+    return response.data;
+  },
+
+  async deleteUser(userId: number): Promise<{ success: boolean; message: string }> {
+    const response = await api.delete<{ success: boolean; message: string }>(`/admin/users/${userId}`);
+    return response.data;
+  },
+
+  async getUserDetails(userId: number): Promise<{ user: AdminUser; totalLogs: number; recentLogs: any[] }> {
+    const response = await api.get<{ user: AdminUser; totalLogs: number; recentLogs: any[] }>(`/admin/users/${userId}/details`);
+    return response.data;
+  },
+
   async getDepartments(): Promise<DepartmentItem[]> {
     const response = await api.get<DepartmentItem[]>('/admin/departments');
     return response.data;
@@ -52,6 +72,11 @@ export const adminApi = {
 
   async deleteDepartment(id: string): Promise<DepartmentItem[]> {
     const response = await api.delete<DepartmentItem[]>(`/admin/departments/${id}`);
+    return response.data;
+  },
+
+  async updateDepartment(id: string, dto: { name?: string; description?: string; color?: string }): Promise<DepartmentItem[]> {
+    const response = await api.patch<DepartmentItem[]>(`/admin/departments/${id}`, dto);
     return response.data;
   },
 

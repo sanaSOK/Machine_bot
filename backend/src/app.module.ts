@@ -20,6 +20,7 @@ import { SuperAdminModule } from './super-admin/super-admin.module';
 import { ProfileModule } from './profile/profile.module';
 import { MailModule } from './mail/mail.module';
 import { AppController } from './app.controller';
+import { AdminOrganization } from './super-admin/admin-organization.entity';
 
 @Module({
   imports: [
@@ -35,10 +36,26 @@ import { AppController } from './app.controller';
         port: parseInt(configService.get<string>('DB_PORT') || '3306', 10),
         username: configService.get<string>('DB_USERNAME') || 'root',
         password: configService.get<string>('DB_PASSWORD') || '1234',
-        database: configService.get<string>('DB_DATABASE') || 'telegram_attendance_db',
-        entities: [User, AdminUser, Attendance, Department, Work],
-        synchronize: false,
-        logging: false,
+        database: configService.get<string>('DB_DATABASE') || 'telegram_app',
+        entities: [User, Attendance, Department],
+        synchronize: true,
+        logging: true,
+      }),
+      inject: [ConfigService],
+    }),
+    TypeOrmModule.forRootAsync({
+      name: 'superAdminConnection',
+      imports: [ConfigModule],
+      useFactory: (configService: ConfigService) => ({
+        type: 'mysql',
+        host: configService.get<string>('DB_HOST') || 'localhost',
+        port: parseInt(configService.get<string>('DB_PORT') || '3306', 10),
+        username: configService.get<string>('DB_USERNAME') || 'root',
+        password: configService.get<string>('DB_PASSWORD') || '1234',
+        database: configService.get<string>('DB_SUPERADMIN_DATABASE') || 'super_admin_attendances_db',
+        entities: [AdminOrganization],
+        synchronize: true,
+        logging: true,
       }),
       inject: [ConfigService],
     }),

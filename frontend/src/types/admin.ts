@@ -36,6 +36,7 @@ export interface AdminUser {
   first_name: string;
   last_name: string | null;
   photo_url: string | null;
+  address?: string | null;
   role: string;
   is_active: boolean;
   created_at: string;
