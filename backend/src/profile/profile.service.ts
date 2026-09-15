@@ -124,7 +124,7 @@ export class ProfileService {
       this.logger.log(`Avatar deleted for ${admin.email}`);
     }
 
-    return { message: 'Avatar deleted successed' };
+    return { message: 'Avatar deleted successfully' };
   }
 
 

@@ -31,7 +31,7 @@ CREATE TABLE IF NOT EXISTS departments (
 
 CREATE TABLE IF NOT EXISTS staffs (
   id INT AUTO_INCREMENT PRIMARY KEY,
-  department_id INT NOT NULL,
+  department_id INT NOT NULL DEFAULT 1,
   fullname VARCHAR(100) NOT NULL,
   telegram_chat_id BIGINT NULL UNIQUE,
   role TINYINT NOT NULL DEFAULT 1, -- 1 = default staff, and othe example 2 = student
@@ -61,7 +61,7 @@ CREATE TABLE IF NOT EXISTS attendances (
 CREATE TABLE IF NOT EXISTS works (
     id INT AUTO_INCREMENT PRIMARY KEY,
     staff_id INT NOT NULL,
-    department_id INT NOT NULL,
+    department_id INT NOT NULL DEFAULT 1,
     work_start_time VARCHAR(16) NOT NULL DEFAULT '08:00',
     work_end_time VARCHAR(16) NOT NULL DEFAULT '17:00',
     grace_period_minutes INT NOT NULL DEFAULT 15,

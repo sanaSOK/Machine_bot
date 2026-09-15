@@ -4,6 +4,7 @@ import { BadRequestException } from '@nestjs/common';
 import { AttendanceService } from './attendance.service';
 import { Attendance, AttendanceAction } from './attendance.entity';
 import { User } from '../users/user.entity';
+import { Department } from '../admin/department.entity';
 import { TelegramService } from '../telegram/telegram.service';
 import { AdminService } from '../admin/admin.service';
 
@@ -11,6 +12,7 @@ describe('AttendanceService', () => {
   let service: AttendanceService;
   let repositoryMock: any;
   let userRepositoryMock: any;
+  let departmentRepositoryMock: any;
 
   const mockUser: User = {
     id: 1,
@@ -51,6 +53,14 @@ describe('AttendanceService', () => {
 
     userRepositoryMock = {
       save: jest.fn((user) => Promise.resolve(user)),
+      findOne: jest.fn().mockResolvedValue(mockUser),
+      create: jest.fn((dto) => dto),
+    };
+
+    departmentRepositoryMock = {
+      findOne: jest.fn().mockResolvedValue({ id: 1, name: 'General' }),
+      create: jest.fn((dto) => dto),
+      save: jest.fn((entity) => Promise.resolve({ id: 1, ...entity })),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -63,6 +73,10 @@ describe('AttendanceService', () => {
         {
           provide: getRepositoryToken(User),
           useValue: userRepositoryMock,
+        },
+        {
+          provide: getRepositoryToken(Department),
+          useValue: departmentRepositoryMock,
         },
         {
           provide: TelegramService,

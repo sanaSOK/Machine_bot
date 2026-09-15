@@ -20,7 +20,7 @@ export class Attendance {
   id: number;
 
   @Index()
-  @Column({ name: 'staff_id', type: 'int' })
+  @Column({ name: 'staff_id', type: 'int' }) // this modify user_id from staff_id
   user_id: number;
 
   @Column({
