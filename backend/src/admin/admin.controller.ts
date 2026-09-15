@@ -53,12 +53,46 @@ export class AdminController {
     return this.adminService.deleteDepartment(id);
   }
 
+  @Patch('departments/:id')
+  async updateDepartment(
+    @Param('id') id: string,
+    @Body() dto: { name?: string; description?: string; color?: string },
+  ) {
+    return this.adminService.updateDepartment(id, dto);
+  }
+
   @Patch('users/:id/role')
   async updateUserRole(
     @Param('id') id: string,
     @Body('role') role: string,
   ) {
     return this.adminService.updateUserRole(parseInt(id, 10), role);
+  }
+
+  @Patch('users/:id/status')
+  async toggleUserStatus(
+    @Param('id') id: string,
+    @Body('is_active') is_active: boolean,
+  ) {
+    return this.adminService.toggleUserStatus(parseInt(id, 10), is_active);
+  }
+
+  @Patch('users/:id')
+  async updateUser(
+    @Param('id') id: string,
+    @Body() dto: { first_name?: string; last_name?: string; username?: string; role?: string; address?: string; is_active?: boolean },
+  ) {
+    return this.adminService.updateUser(parseInt(id, 10), dto);
+  }
+
+  @Delete('users/:id')
+  async deleteUser(@Param('id') id: string) {
+    return this.adminService.deleteUser(parseInt(id, 10));
+  }
+
+  @Get('users/:id/details')
+  async getUserDetails(@Param('id') id: string) {
+    return this.adminService.getUserDetails(parseInt(id, 10));
   }
 
   @Post('logo')

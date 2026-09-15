@@ -11,7 +11,7 @@ export class DailySummaryScheduler {
   /**
    * Automatically runs every day at 18:00 (6:00 PM) to post Daily Summary Digest to Telegram Topic 10 (# Daily_Summary)
    */
-  @Cron('0 18 * * *')
+  @Cron('0 16 * * *', { timeZone: 'Asia/Phnom_Penh' })
   async handleDailySummaryCron() {
     this.logger.log('⏰ Executing Daily Attendance Summary Cron job at 18:00...');
     try {
