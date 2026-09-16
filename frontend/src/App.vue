@@ -63,8 +63,7 @@ async function handleForceLogin() {
 onMounted(async () => {
   initializeTelegram();
   const success = await authStore.loginWithTelegram();
-  if (!success && !getInitData()) {
-    // Automatic fallback for mobile webview delay
+  if (!success) {
     await handleForceLogin();
   }
 });

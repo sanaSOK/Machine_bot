@@ -37,7 +37,7 @@ import { AdminOrganization } from './super-admin/admin-organization.entity';
         username: configService.get<string>('DB_USERNAME') || 'root',
         password: configService.get<string>('DB_PASSWORD') || '1234',
         database: configService.get<string>('DB_DATABASE') || 'telegram_app',
-        entities: [User, Attendance, Department],
+        entities: [User, AdminUser, Attendance, Department, Work],
         synchronize: true,
         logging: true,
       }),

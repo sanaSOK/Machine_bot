@@ -27,9 +27,21 @@ api.interceptors.request.use(
   (error) => Promise.reject(error),
 );
 
-// Response Interceptor: Auto re-authenticate & retry request on 401 Unauthorized
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    if (
+      response.data &&
+      typeof response.data === 'object' &&
+      'success' in response.data &&
+      'data' in response.data
+    ) {
+      return {
+        ...response,
+        data: response.data.data !== null && response.data.data !== undefined ? response.data.data : response.data,
+      };
+    }
+    return response;
+  },
   async (error) => {
     const originalRequest = error.config;
 
