@@ -35,12 +35,14 @@ export class MailService {
     });
 
     try {
+      this.logger.log(`Sending verification email to ${to}... Link: ${verificationLink}`);
       await this.transporter.sendMail({
         from: `"${fromName}" <${fromAddress}>`,
         to,
         subject: 'Confirm your email address',
         html,
       });
+      this.logger.log(`Verification email sent successfully to ${to}`);
     } catch (error: any) {
       this.logger.error(`Failed to send verification email to ${to}: ${error.message}`);
     }
