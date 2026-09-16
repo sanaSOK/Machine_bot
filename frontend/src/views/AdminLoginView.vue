@@ -144,11 +144,7 @@ async function handleLogin() {
   });
 
   if (success) {
-    if (authStore.isSuperAdmin) {
-      router.push('/super-admin');
-    } else {
-      router.push('/admin');
-    }
+    router.push('/admin');
   } else if (authStore.error && authStore.error.toLowerCase().includes('confirm your email')) {
     resendEmail.value = email.value.trim();
   }

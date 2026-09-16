@@ -17,7 +17,7 @@
                 {{ record.user?.first_name }} {{ record.user?.last_name || '' }}
               </h3>
               <p class="text-xs text-slate-400">
-                @{{ record.user?.username || record.user?.telegram_user_id || 'employee' }}
+                {{ formatUsername(record.user?.username, record.user?.telegram_user_id) }}
               </p>
             </div>
           </div>
@@ -120,6 +120,16 @@ defineProps<{
 const emit = defineEmits<{
   (e: 'close'): void;
 }>();
+
+function formatUsername(username?: string | null, telegramId?: string | number): string {
+  if (username && username.trim() && username !== 'no_username') {
+    return `@${username.trim().replace(/^@/, '')}`;
+  }
+  if (telegramId) {
+    return `ID: ${telegramId}`;
+  }
+  return 'no username';
+}
 
 function getFullPhotoUrl(url: string): string {
   if (!url) return '';

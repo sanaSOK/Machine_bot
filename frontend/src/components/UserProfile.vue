@@ -21,7 +21,7 @@
         <span>👤</span> {{ fullName }}
       </h2>
       <p class="text-sm text-indigo-300 font-medium truncate mb-1">
-        {{ user?.username ? `@${user.username}` : 'Telegram Employee' }}
+        {{ formattedUsername }}
       </p>
 
       <!-- Compact Short Google Maps Link Button: [ 📍 Google Maps ] -->
@@ -53,6 +53,13 @@ const props = defineProps<{
 const fullName = computed(() => {
   if (!props.user) return 'Guest User';
   return [props.user.first_name, props.user.last_name].filter(Boolean).join(' ');
+});
+
+const formattedUsername = computed(() => {
+  if (props.user?.username && props.user.username.trim() && props.user.username !== 'no_username') {
+    return `@${props.user.username.trim().replace(/^@/, '')}`;
+  }
+  return 'no username';
 });
 
 const userInitials = computed(() => {

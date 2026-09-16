@@ -448,7 +448,7 @@
                 </div>
                 <div>
                   <p class="font-bold text-white text-xs">{{ user.first_name }} {{ user.last_name || '' }}</p>
-                  <p class="text-[10px] text-slate-400 font-mono">@{{ user.username || 'no_username' }} | ID: {{ user.telegram_user_id }}</p>
+                  <p class="text-[10px] text-slate-400 font-mono">{{ formatUsername(user.username) }} | ID: {{ user.telegram_user_id }}</p>
                 </div>
               </div>
 
@@ -709,6 +709,13 @@ import { useAdminStore } from '../../stores/admin.store';
 import type { DepartmentItem } from '../../types/admin';
 
 const adminStore = useAdminStore();
+
+function formatUsername(username?: string | null): string {
+  if (!username) return 'no username';
+  const clean = username.trim().replace(/^@/, '');
+  if (!clean || clean === 'no_username') return 'no username';
+  return `@${clean}`;
+}
 
 // View Mode Toggle State ('grid' / Cards vs 'table' / List)
 const viewMode = ref<'grid' | 'table'>('grid');

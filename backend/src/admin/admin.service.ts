@@ -1,6 +1,6 @@
 import { Injectable, OnModuleInit, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Between } from 'typeorm';
+import { Repository, Between, IsNull } from 'typeorm';
 import * as fs from 'fs';
 import * as path from 'path';
 import { User } from '../users/user.entity';
@@ -62,7 +62,7 @@ export class AdminService implements OnModuleInit {
     @InjectRepository(Attendance)
     private readonly attendanceRepository: Repository<Attendance>,
     private readonly telegramService: TelegramService,
-  ) {}
+  ) { }
 
   async onModuleInit() {
     await this.seedDefaultDepartments();
@@ -78,9 +78,14 @@ export class AdminService implements OnModuleInit {
     ];
   }
 
-  private async seedDefaultDepartments() {
+  private async seedDefaultDepartments(adminId: number = 2) {
     try {
-      const count = await this.departmentRepository.count();
+      const count = await this.departmentRepository.count({
+        where: [
+          { admin_id: adminId },
+          ...(adminId === 2 ? [{ admin_id: IsNull() }] : []),
+        ],
+      });
       if (count === 0) {
         const defaults = this.getDefaultDepartments();
         for (const d of defaults) {
@@ -88,6 +93,7 @@ export class AdminService implements OnModuleInit {
             name: d.name,
             description: d.description,
             color: d.color,
+            admin_id: adminId,
           });
           await this.departmentRepository.save(entity);
         }
@@ -144,10 +150,22 @@ export class AdminService implements OnModuleInit {
     return updated;
   }
 
-  async getDepartments(): Promise<DepartmentItem[]> {
-    await this.seedDefaultDepartments();
-    const depts = await this.departmentRepository.find({ order: { id: 'ASC' } });
-    const users = await this.userRepository.find();
+  async getDepartments(adminId?: number): Promise<DepartmentItem[]> {
+    const targetAdminId = adminId || 2;
+    await this.seedDefaultDepartments(targetAdminId);
+    const depts = await this.departmentRepository.find({
+      where: [
+        { admin_id: targetAdminId },
+        ...(targetAdminId === 2 ? [{ admin_id: IsNull() }] : []),
+      ],
+      order: { id: 'ASC' },
+    });
+    const users = await this.userRepository.find({
+      where: [
+        { admin_id: targetAdminId },
+        ...(targetAdminId === 2 ? [{ admin_id: IsNull() }] : []),
+      ],
+    });
 
     return depts.map((d) => {
       const count = users.filter((u) => String(u.role || '').trim().toUpperCase() === d.name.toUpperCase()).length;
@@ -162,14 +180,17 @@ export class AdminService implements OnModuleInit {
     });
   }
 
-  async createDepartment(dto: { name: string; description?: string; color?: string }): Promise<DepartmentItem[]> {
+  async createDepartment(adminId: number | undefined, dto: { name: string; description?: string; color?: string }): Promise<DepartmentItem[]> {
+    const targetAdminId = adminId || 2;
     const cleanName = (dto.name || '').trim().toUpperCase();
     if (!cleanName) {
       throw new Error('Department name is required');
     }
 
-    await this.seedDefaultDepartments();
-    const existing = await this.departmentRepository.findOne({ where: { name: cleanName } });
+    await this.seedDefaultDepartments(targetAdminId);
+    const existing = await this.departmentRepository.findOne({
+      where: { name: cleanName, admin_id: targetAdminId },
+    });
     if (existing) {
       throw new Error(`Department "${cleanName}" already exists`);
     }
@@ -179,12 +200,12 @@ export class AdminService implements OnModuleInit {
 
     const newDept = this.departmentRepository.create({
       name: cleanName,
-      description: (dto.description || '').trim() || `${cleanName} Department`,
+      description: dto.description ? dto.description.trim() : '',
       color: dto.color || randomColor,
+      admin_id: targetAdminId,
     });
-
     await this.departmentRepository.save(newDept);
-    return this.getDepartments();
+    return this.getDepartments(targetAdminId);
   }
 
   async deleteDepartment(idOrName: string): Promise<DepartmentItem[]> {
@@ -332,26 +353,44 @@ export class AdminService implements OnModuleInit {
     };
   }
 
-  async getStats() {
-    const totalEmployees = await this.userRepository.count({ where: { is_active: true } });
+  async getStats(adminId?: number) {
+    const targetAdminId = adminId || 2;
+    const totalEmployees = await this.userRepository.count({
+      where: [
+        { is_active: true, admin_id: targetAdminId },
+        ...(targetAdminId === 2 ? [{ is_active: true, admin_id: IsNull() }] : []),
+      ],
+    });
 
     const now = new Date();
     const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
     const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
 
-    const todayCheckIns = await this.attendanceRepository.count({
-      where: {
-        action: AttendanceAction.CHECK_IN,
-        created_at: Between(startOfDay, endOfDay),
-      },
-    });
+    const qbCheckIns = this.attendanceRepository
+      .createQueryBuilder('attendance')
+      .leftJoin('attendance.user', 'user')
+      .where('attendance.action = :action', { action: AttendanceAction.CHECK_IN })
+      .andWhere('attendance.created_at BETWEEN :startOfDay AND :endOfDay', { startOfDay, endOfDay });
 
-    const todayCheckOuts = await this.attendanceRepository.count({
-      where: {
-        action: AttendanceAction.CHECK_OUT,
-        created_at: Between(startOfDay, endOfDay),
-      },
-    });
+    if (targetAdminId === 2) {
+      qbCheckIns.andWhere('(user.admin_id = :targetAdminId OR user.admin_id IS NULL)', { targetAdminId });
+    } else {
+      qbCheckIns.andWhere('user.admin_id = :targetAdminId', { targetAdminId });
+    }
+    const todayCheckIns = await qbCheckIns.getCount();
+
+    const qbCheckOuts = this.attendanceRepository
+      .createQueryBuilder('attendance')
+      .leftJoin('attendance.user', 'user')
+      .where('attendance.action = :action', { action: AttendanceAction.CHECK_OUT })
+      .andWhere('attendance.created_at BETWEEN :startOfDay AND :endOfDay', { startOfDay, endOfDay });
+
+    if (targetAdminId === 2) {
+      qbCheckOuts.andWhere('(user.admin_id = :targetAdminId OR user.admin_id IS NULL)', { targetAdminId });
+    } else {
+      qbCheckOuts.andWhere('user.admin_id = :targetAdminId', { targetAdminId });
+    }
+    const todayCheckOuts = await qbCheckOuts.getCount();
 
     const todayAbsents = Math.max(0, totalEmployees - todayCheckIns);
 
@@ -363,7 +402,8 @@ export class AdminService implements OnModuleInit {
     };
   }
 
-  async getAttendanceLogs(query: AdminAttendanceQueryDto) {
+  async getAttendanceLogs(adminId: number | undefined, query: AdminAttendanceQueryDto) {
+    const targetAdminId = adminId || 2;
     const limit = query.limit || 50;
     const offset = query.offset || 0;
 
@@ -371,6 +411,12 @@ export class AdminService implements OnModuleInit {
       .createQueryBuilder('attendance')
       .leftJoinAndSelect('attendance.user', 'user')
       .orderBy('attendance.created_at', 'DESC');
+
+    if (targetAdminId === 2) {
+      qb.andWhere('(user.admin_id = :targetAdminId OR user.admin_id IS NULL)', { targetAdminId });
+    } else {
+      qb.andWhere('user.admin_id = :targetAdminId', { targetAdminId });
+    }
 
     if (query.type) {
       qb.andWhere('attendance.action = :type', { type: query.type });
@@ -429,7 +475,8 @@ export class AdminService implements OnModuleInit {
     };
   }
 
-  async getEmployees(query?: AdminEmployeeQueryDto) {
+  async getEmployees(adminId: number | undefined, query?: AdminEmployeeQueryDto) {
+    const targetAdminId = adminId || 2;
     const limit = query?.limit || 10;
     const offset = query?.offset || 0;
 
@@ -440,11 +487,13 @@ export class AdminService implements OnModuleInit {
         'user.id',
         'user.department_id',
         'user.first_name',
+        'user.username',
         'user.telegram_user_id',
         'user.phone',
         'user.photo_url',
         'user.role',
         'user.is_active',
+        'user.admin_id',
         'user.created_at',
         'attendance.id',
         'attendance.action',
@@ -455,6 +504,12 @@ export class AdminService implements OnModuleInit {
       .take(limit)
       .skip(offset);
 
+    if (targetAdminId === 2) {
+      qb.andWhere('(user.admin_id = :targetAdminId OR user.admin_id IS NULL)', { targetAdminId });
+    } else {
+      qb.andWhere('user.admin_id = :targetAdminId', { targetAdminId });
+    }
+
     const targetDept = (query?.department || query?.role || '').trim();
     if (targetDept) {
       qb.andWhere('user.role = :targetDept', { targetDept });
@@ -462,7 +517,7 @@ export class AdminService implements OnModuleInit {
 
     if (query?.search) {
       const term = `%${query.search.toLowerCase()}%`;
-      qb.andWhere('LOWER(user.first_name) LIKE :term', { term });
+      qb.andWhere('(LOWER(user.first_name) LIKE :term OR LOWER(user.username) LIKE :term)', { term });
     }
 
     const [data, total] = await qb.getManyAndCount();
@@ -824,7 +879,7 @@ export class AdminService implements OnModuleInit {
   async sendDailySummaryReport(): Promise<boolean> {
     const settings = this.getSettings();
     const groupId = process.env.TELEGRAM_NOTIFICATION_CHAT_ID || settings.telegramNotificationChatId || '-1005192733304';
-    
+
     // 1. Post Group Summary Digest to Topic 10 ("Daily_Summary")
     let groupTarget = groupId;
     if (groupTarget && !groupTarget.includes(':')) {

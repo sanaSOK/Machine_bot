@@ -22,7 +22,7 @@ export const adminApi = {
   },
 
   async updateSettings(settings: Partial<SystemSettings>): Promise<SystemSettings> {
-    const response = await api.post<SystemSettings>('/admin/settings', settings);
+    const response = await api.put<SystemSettings>('/admin/settings', settings);
     return response.data;
   },
 
@@ -36,7 +36,7 @@ export const adminApi = {
   },
 
   async updateUserRole(userId: number, role: string): Promise<AdminUser> {
-    const response = await api.patch<AdminUser>(`/admin/users/${userId}/role`, { role });
+    const response = await api.put<AdminUser>(`/admin/users/${userId}/role`, { role });
     return response.data;
   },
 

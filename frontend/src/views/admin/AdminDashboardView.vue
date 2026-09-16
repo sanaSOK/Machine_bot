@@ -231,7 +231,7 @@
                       {{ record.user?.first_name || 'Employee' }} {{ record.user?.last_name || '' }}
                     </div>
                     <div class="text-[11px] text-slate-400 font-mono mt-0.5">
-                      @{{ record.user?.username || record.user?.telegram_user_id || 'unknown' }}
+                      {{ formatUsername(record.user?.username, record.user?.telegram_user_id) }}
                     </div>
                   </div>
                 </div>
@@ -374,6 +374,16 @@ import type { AdminAttendanceRecord } from '../../types/admin';
 
 const adminStore = useAdminStore();
 const isSendingSummary = ref(false);
+
+function formatUsername(username?: string | null, telegramId?: string | number): string {
+  if (username && username.trim() && username !== 'no_username') {
+    return `@${username.trim().replace(/^@/, '')}`;
+  }
+  if (telegramId) {
+    return `ID: ${telegramId}`;
+  }
+  return 'no username';
+}
 
 async function sendDailySummaryNow() {
   isSendingSummary.value = true;

@@ -158,7 +158,7 @@
                       {{ user.first_name }} {{ user.last_name || '' }}
                     </div>
                     <div class="text-[11px] text-slate-400 font-mono mt-0.5">
-                      @{{ user.username || 'no_username' }}
+                      {{ formatUsername(user.username) }}
                     </div>
                   </div>
                 </div>
@@ -187,7 +187,7 @@
                       {{ dept.name }}
                     </option>
                     <option
-                      v-if="user.role && !adminStore.departments.some(d => d.name.toUpperCase() === user.role.toUpperCase())"
+                      v-if="user.role && !adminStore.departments.some(d => String(d.name || '').toUpperCase() === String(user.role || '').toUpperCase())"
                       :value="user.role"
                       class="bg-slate-900 text-indigo-300 font-bold"
                     >
@@ -345,7 +345,7 @@
                   {{ userDetailsData.user?.is_active ? 'Active' : 'Inactive' }}
                 </span>
               </div>
-              <p class="text-xs font-mono text-indigo-300">@{{ userDetailsData.user?.username || 'no_username' }}</p>
+              <p class="text-xs font-mono text-indigo-300">{{ formatUsername(userDetailsData.user?.username) }}</p>
               <p class="text-[11px] text-slate-400 font-mono">Telegram ID: <span class="text-slate-200 font-bold">{{ userDetailsData.user?.telegram_user_id }}</span></p>
             </div>
 
@@ -463,17 +463,17 @@
             </div>
           </div>
 
-          <!-- Telegram Username -->
+          <!-- Telegram Username (Auto-synced from Telegram) -->
           <div class="space-y-1.5">
-            <label class="text-xs font-bold text-slate-300">Telegram Username</label>
-            <div class="relative">
-              <span class="absolute left-3.5 top-2.5 text-slate-500 font-mono text-xs">@</span>
-              <input
-                v-model="editForm.username"
-                type="text"
-                placeholder="username"
-                class="w-full pl-8 pr-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs font-semibold text-white focus:outline-none focus:border-amber-500/80 focus:ring-2 focus:ring-amber-500/20"
-              />
+            <div class="flex items-center justify-between">
+              <label class="text-xs font-bold text-slate-300">Telegram Username</label>
+              <span class="text-[10px] font-bold text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded-full border border-indigo-500/20">
+                ⚡ Auto-synced from Telegram
+              </span>
+            </div>
+            <div class="px-3.5 py-2.5 rounded-xl bg-slate-950/80 border border-slate-800 text-xs font-mono text-indigo-300 flex items-center justify-between">
+              <span>{{ formatUsername(editForm.username) }}</span>
+              <span class="text-[10px] text-slate-500 font-sans">Read-only</span>
             </div>
           </div>
 
@@ -487,7 +487,7 @@
               <option v-for="dept in adminStore.departments" :key="dept.id" :value="dept.name" class="bg-slate-900">
                 {{ dept.name }}
               </option>
-              <option v-if="editForm.role && !adminStore.departments.some(d => d.name.toUpperCase() === editForm.role.toUpperCase())" :value="editForm.role" class="bg-slate-900">
+              <option v-if="editForm.role && !adminStore.departments.some(d => String(d.name || '').toUpperCase() === String(editForm.role || '').toUpperCase())" :value="editForm.role" class="bg-slate-900">
                 {{ editForm.role }}
               </option>
             </select>
@@ -633,6 +633,13 @@ const isDeleteModalOpen = ref(false);
 const deletingUser = ref<AdminUser | null>(null);
 const isDeleting = ref(false);
 
+function formatUsername(username?: string | null): string {
+  if (!username) return 'no username';
+  const clean = username.trim().replace(/^@/, '');
+  if (!clean || clean === 'no_username') return 'no username';
+  return `@${clean}`;
+}
+
 const currentEmployeePage = computed(() => {
   const limit = adminStore.employeeFilters?.limit || 10;
   const offset = adminStore.employeeFilters?.offset || 0;
@@ -677,7 +684,7 @@ watch(
 );
 
 async function onRoleSelectChange(user: AdminUser, newRole: string) {
-  if (!newRole || newRole.trim().toUpperCase() === (user.role || '').toUpperCase()) return;
+  if (!newRole || newRole.trim().toUpperCase() === String(user.role || '').toUpperCase()) return;
   updatingUserId.value = user.id;
   const ok = await adminStore.updateUserRole(user.id, newRole.trim().toUpperCase());
   if (ok) {

@@ -13,6 +13,7 @@ import {
   UseInterceptors,
   UploadedFile,
   UseGuards,
+  Request,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
@@ -26,13 +27,13 @@ import { RolesGuard } from '../common/guards/roles.guard';
 
 @Controller('admin')
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(AdminRole.ADMIN)
+@Roles(AdminRole.ADMIN, AdminRole.SUPER_ADMIN)
 export class AdminController {
-  constructor(private readonly adminService: AdminService) {}
+  constructor(private readonly adminService: AdminService) { }
 
   @Get('stats')
-  async getStats() {
-    return this.adminService.getStats();
+  async getStats(@Request() req: any) {
+    return this.adminService.getStats(req.user?.sub);
   }
 
   @Get('settings')
@@ -40,19 +41,19 @@ export class AdminController {
     return this.adminService.getSettings();
   }
 
-  @Put('settings') 
+  @Put('settings')
   async updateSettings(@Body() dto: Partial<SystemSettings>) {
     return this.adminService.updateSettings(dto);
   }
 
   @Get('departments')
-  async getDepartments() {
-    return this.adminService.getDepartments();
+  async getDepartments(@Request() req: any) {
+    return this.adminService.getDepartments(req.user?.sub);
   }
 
   @Post('departments')
-  async createDepartment(@Body() dto: { name: string; description?: string; color?: string }) {
-    return this.adminService.createDepartment(dto);
+  async createDepartment(@Request() req: any, @Body() dto: { name: string; description?: string; color?: string }) {
+    return this.adminService.createDepartment(req.user?.sub, dto);
   }
 
   @Delete('departments/:id')
@@ -129,6 +130,7 @@ export class AdminController {
 
   @Get('attendance')
   async getAttendance(
+    @Request() req: any,
     @Query('search') search?: string,
     @Query('type') type?: 'CHECK_IN' | 'CHECK_OUT',
     @Query('date') date?: string,
@@ -136,7 +138,7 @@ export class AdminController {
     @Query('limit') limit?: string,
     @Query('offset') offset?: string,
   ) {
-    return this.adminService.getAttendanceLogs({
+    return this.adminService.getAttendanceLogs(req.user?.sub, {
       search,
       type,
       date,
@@ -148,13 +150,14 @@ export class AdminController {
 
   @Get('employees')
   async getEmployees(
+    @Request() req: any,
     @Query('search') search?: string,
     @Query('department') department?: string,
     @Query('role') role?: string,
     @Query('limit') limit?: string,
     @Query('offset') offset?: string,
   ) {
-    return this.adminService.getEmployees({
+    return this.adminService.getEmployees(req.user?.sub, {
       search,
       department,
       role,

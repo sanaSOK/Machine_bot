@@ -47,7 +47,14 @@ api.interceptors.response.use(
 
     if (error.response && error.response.status === 401 && originalRequest && !originalRequest._retry) {
       originalRequest._retry = true;
-      localStorage.removeItem('auth_token');
+      const isAdminRoute = window.location.pathname.startsWith('/admin') || window.location.pathname.startsWith('/super-admin');
+
+      if (isAdminRoute || localStorage.getItem('admin_session_user')) {
+        localStorage.removeItem('auth_token');
+        localStorage.removeItem('admin_session_user');
+        window.location.href = '/admin/login';
+        return Promise.reject(new Error('Session expired. Please log in again.'));
+      }
 
       try {
         const authStore = useAuthStore();

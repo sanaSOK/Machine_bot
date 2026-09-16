@@ -40,9 +40,14 @@ export class User {
   @UpdateDateColumn({ name: 'updated_at' })
   updated_at: Date;
 
+  @Column({ name: 'username', type: 'varchar', length: 100, nullable: true })
+  username: string | null;
+
+  @Column({ name: 'admin_id', type: 'int', nullable: true, default: 2 })
+  admin_id?: number | null;
+
   // Unmapped helper fields for existing services
   last_name?: string | null;
-  username?: string | null;
   address?: string | null;
 
   @OneToMany(() => Attendance, (attendance) => attendance.user)

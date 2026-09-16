@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, OnModuleInit } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User } from './user.entity';
@@ -13,12 +13,46 @@ export interface TelegramUserData {
 }
 
 @Injectable()
-export class UsersService {
+export class UsersService implements OnModuleInit {
   constructor(
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
     private readonly telegramService: TelegramService,
   ) {}
+
+  async syncAllTelegramUsernames() {
+    try {
+      const users = await this.userRepository.find();
+      for (const user of users) {
+        if (!user.telegram_user_id) continue;
+        const info = await this.telegramService.getTelegramChatInfo(user.telegram_user_id);
+        if (info && info.username !== undefined && user.username !== info.username) {
+          user.username = info.username || null;
+          if (info.first_name) {
+            const fullName = [info.first_name, info.last_name].filter(Boolean).join(' ');
+            if (fullName) user.first_name = fullName;
+          }
+          await this.userRepository.save(user);
+        }
+      }
+    } catch (e) {
+      // Ignore background sync error
+    }
+  }
+
+  async onModuleInit() {
+    try {
+      // Clean up any legacy 'no_username' strings across all users in DB so missing usernames are set to null
+      const legacyUsers = await this.userRepository.find({ where: { username: 'no_username' } });
+      for (const u of legacyUsers) {
+        u.username = null;
+        await this.userRepository.save(u);
+      }
+      await this.syncAllTelegramUsernames();
+    } catch (e) {
+      // Ignore initial DB cleanup warning
+    }
+  }
 
   async findByTelegramId(telegramUserId: string): Promise<User | null> {
     return this.userRepository.findOne({
@@ -48,10 +82,13 @@ export class UsersService {
 
     const fullName = [telegramUser.first_name, telegramUser.last_name].filter(Boolean).join(' ') || 'Telegram User';
 
+    const telegramUsername = telegramUser.username ? telegramUser.username.trim().replace(/^@/, '') : null;
+
     if (!user) {
       user = this.userRepository.create({
         telegram_user_id: telegramIdStr,
         first_name: fullName,
+        username: telegramUsername,
         photo_url: photoUrl,
         department_id: 1,
         role: 1,
@@ -60,10 +97,14 @@ export class UsersService {
       return this.userRepository.save(user);
     }
 
-    // Update profile info if changed
+    // Update profile info dynamically for EVERY Telegram user whenever they open app / check-in
     let updated = false;
     if (fullName && user.first_name !== fullName) {
       user.first_name = fullName;
+      updated = true;
+    }
+    if (telegramUsername !== undefined && user.username !== telegramUsername) {
+      user.username = telegramUsername;
       updated = true;
     }
     if (photoUrl && user.photo_url !== photoUrl) {

@@ -342,6 +342,29 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
   }
 
   /**
+   * Fetch live Telegram chat/user profile directly from Telegram API
+   */
+  async getTelegramChatInfo(telegramUserId: string | number): Promise<{ first_name?: string; last_name?: string; username?: string } | null> {
+    const botToken = this.configService.get<string>('TELEGRAM_BOT_TOKEN');
+    if (!botToken || !telegramUserId || String(telegramUserId).startsWith('dev_')) return null;
+
+    try {
+      const res = await fetch(`https://api.telegram.org/bot${botToken}/getChat?chat_id=${telegramUserId}`);
+      const data = (await res.json()) as any;
+      if (data.ok && data.result) {
+        return {
+          first_name: data.result.first_name,
+          last_name: data.result.last_name,
+          username: data.result.username ? data.result.username.trim().replace(/^@/, '') : undefined,
+        };
+      }
+    } catch (e) {
+      this.logger.warn(`Failed to fetch Telegram chat info for ${telegramUserId}: ${e}`);
+    }
+    return null;
+  }
+
+  /**
    * Process incoming Telegram bot update (e.g. /start command)
    */
   async handleWebhookUpdate(update: any) {

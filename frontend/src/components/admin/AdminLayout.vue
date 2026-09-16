@@ -393,13 +393,11 @@ import {
   LogOut,
 } from 'lucide-vue-next';
 import { useAdminStore } from '../../stores/admin.store';
-import { useSuperAdminStore } from '../../stores/super-admin.store';
 import { useAuthStore } from '../../stores/auth.store';
 import cleanQrImg from '../../assets/clean-qr.png';
 
 const router = useRouter();
 const adminStore = useAdminStore();
-const superAdminStore = useSuperAdminStore();
 const authStore = useAuthStore();
 const isSidebarCollapsed = ref(false);
 const isMobileDrawerOpen = ref(false);
@@ -413,12 +411,6 @@ const isCurrentOrgSuspended = computed(() => {
   if (adminStore.settings?.status === 'SUSPENDED' || adminStore.settings?.isSuspended) {
     return true;
   }
-  if (superAdminStore.admins.length > 0) {
-    const suspendedAdmin = superAdminStore.admins.find((a) => a.is_active === 0);
-    if (suspendedAdmin) {
-      return true;
-    }
-  }
   return false;
 });
 
@@ -426,7 +418,6 @@ onMounted(async () => {
   await adminStore.fetchSettings();
   adminStore.fetchStats();
   adminStore.fetchDepartments();
-  superAdminStore.fetchAdmins();
 });
 </script>
 

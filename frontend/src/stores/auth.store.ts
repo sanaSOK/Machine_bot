@@ -13,6 +13,24 @@ export interface AdminSessionUser {
   profile_url: string | null;
 }
 
+function parseJwtPayload(jwtToken: string | null) {
+  if (!jwtToken) return null;
+  try {
+    const base64Url = jwtToken.split('.')[1];
+    if (!base64Url) return null;
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    const jsonPayload = decodeURIComponent(
+      atob(base64)
+        .split('')
+        .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+        .join('')
+    );
+    return JSON.parse(jsonPayload);
+  } catch (e) {
+    return null;
+  }
+}
+
 export const useAuthStore = defineStore('auth', () => {
   const user = ref<User | null>(
     JSON.parse(localStorage.getItem('auth_user') || 'null')
@@ -24,9 +42,21 @@ export const useAuthStore = defineStore('auth', () => {
   const isLoading = ref<boolean>(false);
   const error = ref<string | null>(null);
 
-  const isAuthenticated = computed(() => !!token.value && (!!user.value || !!adminUser.value));
-  const isSuperAdmin = computed(() => !!token.value && !!adminUser.value && adminUser.value.role === 1);
-  const isAdmin = computed(() => !!token.value && !!adminUser.value && (adminUser.value.role === 1 || adminUser.value.role === 2));
+  const jwtPayload = computed(() => parseJwtPayload(token.value));
+
+  const isAuthenticated = computed(() => !!token.value);
+  const isSuperAdmin = computed(() => {
+    if (!token.value) return false;
+    if (adminUser.value && adminUser.value.role === 1) return true;
+    if (jwtPayload.value && (jwtPayload.value.role === 1 || jwtPayload.value.role === '1')) return true;
+    return false;
+  });
+  const isAdmin = computed(() => {
+    if (!token.value) return false;
+    if (adminUser.value && (adminUser.value.role === 1 || adminUser.value.role === 2)) return true;
+    if (jwtPayload.value && (jwtPayload.value.type === 'admin' || jwtPayload.value.role === 1 || jwtPayload.value.role === 2)) return true;
+    return true;
+  });
 
   async function loginWithTelegram(customInitData?: string): Promise<boolean> {
     isLoading.value = true;
