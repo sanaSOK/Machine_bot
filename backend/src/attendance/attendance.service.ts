@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between } from 'typeorm';
 import { Attendance, AttendanceAction } from './attendance.entity';
 import { User } from '../users/user.entity';
+import { Department } from '../admin/department.entity';
 import { CheckInDto } from './dto/check-in.dto';
 import { CheckOutDto } from './dto/check-out.dto';
 import { TelegramService } from '../telegram/telegram.service';
@@ -23,6 +24,8 @@ export class AttendanceService {
     private readonly attendanceRepository: Repository<Attendance>,
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
+    @InjectRepository(Department)
+    private readonly departmentRepository: Repository<Department>,
     private readonly telegramService: TelegramService,
     private readonly adminService: AdminService,
   ) {}
@@ -73,6 +76,63 @@ export class AttendanceService {
     };
   }
 
+  private async getValidDepartmentId(): Promise<number> {
+    try {
+      const dept1 = await this.departmentRepository.findOne({ where: { id: 1 } });
+      if (dept1) return dept1.id;
+
+      const anyDept = await this.departmentRepository.findOne({ where: {} });
+      if (anyDept) return anyDept.id;
+
+      // If no department exists in MySQL, insert the default General department
+      const newDept = this.departmentRepository.create({
+        id: 1,
+        name: 'General',
+        description: 'General Department',
+        color: '#6366f1',
+      });
+      const saved = await this.departmentRepository.save(newDept);
+      return saved.id;
+    } catch {
+      return 1;
+    }
+  }
+
+  private async resolveStaffUser(user: User | any): Promise<User> {
+    if (!user || !user.id) {
+      throw new BadRequestException('User context is invalid');
+    }
+
+    if (user.department_id) {
+      const deptExists = await this.departmentRepository.findOne({ where: { id: user.department_id } });
+      if (deptExists) {
+        return user;
+      }
+    }
+
+    const validDeptId = await this.getValidDepartmentId();
+
+    const existingStaff = await this.userRepository.findOne({ where: { id: user.id } });
+    if (existingStaff) {
+      if (!existingStaff.department_id || existingStaff.department_id !== validDeptId) {
+        existingStaff.department_id = validDeptId;
+        await this.userRepository.save(existingStaff);
+      }
+      return existingStaff;
+    }
+
+    const staffName = user.fullname;
+    const newStaff = this.userRepository.create({
+      id: user.id,
+      first_name: staffName,
+      department_id: validDeptId,
+      role: 1,
+      is_active: true,
+      photo_url: user.photo_url || user.profile_url || null,
+    });
+    return await this.userRepository.save(newStaff);
+  }
+
   async checkIn(
     user: User,
     file: Express.Multer.File | undefined,
@@ -82,18 +142,13 @@ export class AttendanceService {
       throw new BadRequestException('Attendance photo is required for check in');
     }
 
+    const staffUser = await this.resolveStaffUser(user);
     const photoUrl = this.formatFileUrl(file);
-
-    // Update user address if provided
-    if (dto.address && user) {
-      user.address = dto.address;
-      await this.userRepository.save(user);
-    }
 
     // Save Check-In record with current exact timestamp
     const attendance = this.attendanceRepository.create({
-      user_id: user.id,
-      user,
+      user_id: staffUser.id,
+      user: staffUser,
       action: AttendanceAction.CHECK_IN,
       photo_url: photoUrl,
       latitude: dto.latitude !== undefined ? dto.latitude : null,
@@ -105,7 +160,7 @@ export class AttendanceService {
     const saved = await this.attendanceRepository.save(attendance);
 
     // Send Telegram Photo Notification Alert
-    this.sendTelegramCheckInNotification(user, file.path, saved).catch((e) =>
+    this.sendTelegramCheckInNotification(staffUser, file.path, saved).catch((e) =>
       console.warn('Failed to send Telegram check-in notification:', e),
     );
 
@@ -121,22 +176,19 @@ export class AttendanceService {
       throw new BadRequestException('Attendance photo is required for check out');
     }
 
-    const todayStatus = await this.getTodayStatus(user.id);
+    const staffUser = await this.resolveStaffUser(user);
+
+    const todayStatus = await this.getTodayStatus(staffUser.id);
     if (!todayStatus.canCheckOut) {
       throw new BadRequestException('Cannot check out: You are not currently checked in.');
     }
 
     const photoUrl = this.formatFileUrl(file);
 
-    if (dto.address && user) {
-      user.address = dto.address;
-      await this.userRepository.save(user);
-    }
-
     // Save Check-Out record with current exact timestamp
     const attendance = this.attendanceRepository.create({
-      user_id: user.id,
-      user,
+      user_id: staffUser.id,
+      user: staffUser,
       action: AttendanceAction.CHECK_OUT,
       photo_url: photoUrl,
       latitude: dto.latitude !== undefined ? dto.latitude : null,
@@ -148,7 +200,7 @@ export class AttendanceService {
     const saved = await this.attendanceRepository.save(attendance);
 
     // Send Telegram Photo Notification Alert
-    this.sendTelegramCheckOutNotification(user, file.path, saved).catch((e) =>
+    this.sendTelegramCheckOutNotification(staffUser, file.path, saved).catch((e) =>
       console.warn('Failed to send Telegram check-out notification:', e),
     );
 

@@ -1,4 +1,4 @@
-import { Injectable, OnModuleInit } from '@nestjs/common';
+import { Injectable, OnModuleInit, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between } from 'typeorm';
 import * as fs from 'fs';
@@ -241,7 +241,7 @@ export class AdminService implements OnModuleInit {
   async updateUserRole(userId: number, role: string) {
     const user = await this.userRepository.findOne({ where: { id: userId } });
     if (!user) {
-      throw new Error(`User with ID ${userId} not found`);
+      throw new NotFoundException(`User with ID ${userId} not found`);
     }
     const cleanRole = (role || '').trim().toUpperCase() || 'EMPLOYEE';
     user.role = cleanRole;
@@ -395,10 +395,7 @@ export class AdminService implements OnModuleInit {
 
     if (query.search) {
       const term = `%${query.search.toLowerCase()}%`;
-      qb.andWhere(
-        '(LOWER(user.first_name) LIKE :term OR LOWER(user.last_name) LIKE :term OR LOWER(user.username) LIKE :term)',
-        { term },
-      );
+      qb.andWhere('LOWER(user.first_name) LIKE :term', { term });
     }
 
     let data: Attendance[] = [];
@@ -441,10 +438,10 @@ export class AdminService implements OnModuleInit {
       .leftJoinAndSelect('user.attendances', 'attendance')
       .select([
         'user.id',
-        'user.telegram_user_id',
-        'user.username',
+        'user.department_id',
         'user.first_name',
-        'user.last_name',
+        'user.telegram_user_id',
+        'user.phone',
         'user.photo_url',
         'user.role',
         'user.is_active',
@@ -460,15 +457,12 @@ export class AdminService implements OnModuleInit {
 
     const targetDept = (query?.department || query?.role || '').trim();
     if (targetDept) {
-      qb.andWhere('LOWER(user.role) = :targetDept', { targetDept: targetDept.toLowerCase() });
+      qb.andWhere('user.role = :targetDept', { targetDept });
     }
 
     if (query?.search) {
       const term = `%${query.search.toLowerCase()}%`;
-      qb.andWhere(
-        '(LOWER(user.first_name) LIKE :term OR LOWER(user.last_name) LIKE :term OR LOWER(user.username) LIKE :term OR LOWER(user.role) LIKE :term)',
-        { term },
-      );
+      qb.andWhere('LOWER(user.first_name) LIKE :term', { term });
     }
 
     const [data, total] = await qb.getManyAndCount();

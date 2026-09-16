@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Post,
+  Put,
   Patch,
   Delete,
   Param,
@@ -11,6 +12,7 @@ import {
   Header,
   UseInterceptors,
   UploadedFile,
+  UseGuards,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
@@ -18,8 +20,13 @@ import { extname, join } from 'path';
 import * as fs from 'fs';
 import { Response } from 'express';
 import { AdminService, SystemSettings } from './admin.service';
+import { Roles, AdminRole } from '../common/decorators/roles.decorator';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { RolesGuard } from '../common/guards/roles.guard';
 
 @Controller('admin')
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles(AdminRole.ADMIN)
 export class AdminController {
   constructor(private readonly adminService: AdminService) {}
 
@@ -33,7 +40,7 @@ export class AdminController {
     return this.adminService.getSettings();
   }
 
-  @Post('settings')
+  @Put('settings') 
   async updateSettings(@Body() dto: Partial<SystemSettings>) {
     return this.adminService.updateSettings(dto);
   }
@@ -53,15 +60,7 @@ export class AdminController {
     return this.adminService.deleteDepartment(id);
   }
 
-  @Patch('departments/:id')
-  async updateDepartment(
-    @Param('id') id: string,
-    @Body() dto: { name?: string; description?: string; color?: string },
-  ) {
-    return this.adminService.updateDepartment(id, dto);
-  }
-
-  @Patch('users/:id/role')
+  @Put('users/:id/role')
   async updateUserRole(
     @Param('id') id: string,
     @Body('role') role: string,
