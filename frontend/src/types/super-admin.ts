@@ -1,24 +1,24 @@
-export interface AdminOrgItem {
-  id: string;
-  companyName: string;
-  adminUsername: string;
-  contactEmail: string;
-  logoUrl?: string;
-  status: 'ACTIVE' | 'SUSPENDED';
-  workStartTime: string;
-  workEndTime: string;
-  gracePeriodMinutes: number;
-  telegramBotToken?: string;
-  telegramNotificationChatId?: string;
-  createdAt: string;
-  totalEmployees?: number;
-  todayCheckIns?: number;
+export interface AdminUser {
+  id: number;
+  fullname: string;
+  email: string;
+  profile_url: string | null;
+  role: number; // 1 = SUPER_ADMIN, 2 = ADMIN
+  is_active: number; // 1 = Active, 0 = Inactive
+  is_verified: number; // 1 = Verified, 0 = Unverified
+  created_at: string;
+  updated_at: string;
 }
 
 export interface SuperAdminStats {
-  totalAdminOrgs: number;
-  activeAdminOrgs: number;
-  suspendedAdminOrgs: number;
-  totalSystemEmployees: number;
+  totalAdmins: number;
+  totalActiveStaff: number;
   totalTodayCheckIns: number;
+}
+
+export interface CreateAdminDto {
+  fullname: string;
+  email: string;
+  password?: string;
+  profile_url?: string | null;
 }

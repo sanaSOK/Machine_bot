@@ -76,8 +76,8 @@
           >
             <Building2 class="w-5 h-5 shrink-0 transition-transform group-hover:scale-105" />
             <span v-if="!isSidebarCollapsed" class="whitespace-nowrap">Admin Orgs</span>
-            <span v-if="!isSidebarCollapsed && superAdminStore.adminOrgs.length > 0" class="ml-auto text-[9px] font-extrabold px-2 py-0.5 rounded-full bg-indigo-500/15 text-indigo-300 border border-indigo-500/30 shadow-sm">
-              {{ superAdminStore.adminOrgs.length }}
+            <span v-if="!isSidebarCollapsed && superAdminStore.admins.length > 0" class="ml-auto text-[9px] font-extrabold px-2 py-0.5 rounded-full bg-indigo-500/15 text-indigo-300 border border-indigo-500/30 shadow-sm">
+              {{ superAdminStore.admins.length }}
             </span>
           </router-link>
         </nav>
@@ -218,6 +218,14 @@
             <span class="w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse"></span>
             <span>Port 5173 Active</span>
           </div>
+          <button
+            @click="handleLogout"
+            class="p-2.5 rounded-2xl bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-rose-300 hover:text-white transition-all shadow-md active:scale-95 cursor-pointer flex items-center gap-1.5 text-xs font-bold"
+            title="Log Out"
+          >
+            <LogOut class="w-4 h-4 text-rose-400" />
+            <span class="hidden sm:inline">Logout</span>
+          </button>
         </div>
       </header>
 
@@ -241,17 +249,26 @@ import {
   PanelLeftOpen,
   Menu,
   X,
+  LogOut,
 } from 'lucide-vue-next';
 import { useSuperAdminStore } from '../../stores/super-admin.store';
+import { useAuthStore } from '../../stores/auth.store';
 
 const router = useRouter();
 const superAdminStore = useSuperAdminStore();
+const authStore = useAuthStore();
+
 const isSidebarCollapsed = ref(false);
 const isMobileDrawerOpen = ref(false);
 
+function handleLogout() {
+  authStore.logout();
+  router.push('/admin/login');
+}
+
 onMounted(() => {
   superAdminStore.fetchStats();
-  superAdminStore.fetchAdminOrgs();
+  superAdminStore.fetchAdmins();
 });
 </script>
 

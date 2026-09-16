@@ -1,44 +1,23 @@
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
 import { superAdminApi } from '../services/super-admin.api';
-import type { SuperAdminStats, AdminOrgItem } from '../types/super-admin';
+import type { SuperAdminStats, AdminUser, CreateAdminDto } from '../types/super-admin';
 
 export const useSuperAdminStore = defineStore('superAdmin', () => {
   const stats = ref<SuperAdminStats>({
-    totalAdminOrgs: 0,
-    activeAdminOrgs: 0,
-    suspendedAdminOrgs: 0,
-    totalSystemEmployees: 0,
+    totalAdmins: 0,
+    totalActiveStaff: 0,
     totalTodayCheckIns: 0,
   });
 
-  const adminOrgs = ref<AdminOrgItem[]>([]);
+  const admins = ref<AdminUser[]>([]);
 
   const isLoadingStats = ref<boolean>(false);
-  const isLoadingOrgs = ref<boolean>(false);
-  const isCreatingOrg = ref<boolean>(false);
-  const isUpdatingOrg = ref<boolean>(false);
-  const isUploadingOrgLogo = ref<boolean>(false);
+  const isLoadingAdmins = ref<boolean>(false);
+  const isCreatingAdmin = ref<boolean>(false);
+  const isUpdatingStatus = ref<boolean>(false);
   const error = ref<string | null>(null);
   const successMessage = ref<string | null>(null);
-
-  async function uploadOrgLogo(file: File): Promise<string | null> {
-    isUploadingOrgLogo.value = true;
-    error.value = null;
-    try {
-      const res = await superAdminApi.uploadOrgLogo(file);
-      if (res && res.logoUrl) {
-        successMessage.value = 'Organization logo uploaded successfully!';
-        return res.logoUrl;
-      }
-      return null;
-    } catch (err: any) {
-      error.value = err.message || 'Failed to upload organization logo';
-      return null;
-    } finally {
-      isUploadingOrgLogo.value = false;
-    }
-  }
 
   async function fetchStats() {
     isLoadingStats.value = true;
@@ -56,116 +35,96 @@ export const useSuperAdminStore = defineStore('superAdmin', () => {
     }
   }
 
-  async function fetchAdminOrgs() {
-    isLoadingOrgs.value = true;
+  async function fetchAdmins(status?: number) {
+    isLoadingAdmins.value = true;
     error.value = null;
     try {
-      const res = await superAdminApi.getAdminOrgs();
+      const res = await superAdminApi.getAdmins(status);
       if (Array.isArray(res)) {
-        adminOrgs.value = res;
+        admins.value = res;
       }
     } catch (err: any) {
-      console.warn('Failed to fetch admin orgs:', err);
-      error.value = err.message || 'Failed to fetch admin organizations';
+      console.warn('Failed to fetch admins:', err);
+      error.value = err.message || 'Failed to fetch admin accounts';
     } finally {
-      isLoadingOrgs.value = false;
+      isLoadingAdmins.value = false;
     }
   }
 
-  async function createAdminOrg(dto: Partial<AdminOrgItem>): Promise<boolean> {
-    isCreatingOrg.value = true;
+  async function createAdmin(dto: CreateAdminDto): Promise<boolean> {
+    isCreatingAdmin.value = true;
     error.value = null;
     successMessage.value = null;
     try {
-      const res = await superAdminApi.createAdminOrg(dto);
-      if (Array.isArray(res)) {
-        adminOrgs.value = res;
-        successMessage.value = `Admin Organization "${dto.companyName}" created successfully!`;
-        fetchStats();
+      const created = await superAdminApi.createAdmin(dto);
+      if (created) {
+        successMessage.value = `Admin account "${created.email}" created successfully! A verification link was sent to their email.`;
+        await fetchAdmins();
+        await fetchStats();
         return true;
       }
       return false;
     } catch (err: any) {
-      error.value = err.message || 'Failed to create admin organization';
-      return false;
-    } finally {
-      isCreatingOrg.value = false;
-    }
-  }
-
-  async function updateAdminOrg(id: string, dto: Partial<AdminOrgItem>): Promise<boolean> {
-    isUpdatingOrg.value = true;
-    error.value = null;
-    successMessage.value = null;
-    try {
-      const res = await superAdminApi.updateAdminOrg(id, dto);
-      if (Array.isArray(res)) {
-        adminOrgs.value = res;
-        successMessage.value = 'Admin Organization updated successfully!';
-        fetchStats();
-        return true;
-      }
-      return false;
-    } catch (err: any) {
-      error.value = err.message || 'Failed to update admin organization';
+      error.value = err.message || 'Failed to create admin account';
       return false;
     } finally {
-      isUpdatingOrg.value = false;
+      isCreatingAdmin.value = false;
     }
   }
 
-  async function toggleAdminStatus(id: string, status: 'ACTIVE' | 'SUSPENDED'): Promise<boolean> {
+  async function toggleAdminStatus(id: number, currentStatus: number): Promise<boolean> {
+    isUpdatingStatus.value = true;
     error.value = null;
     successMessage.value = null;
+    const newStatus = currentStatus === 1 ? 0 : 1;
     try {
-      const res = await superAdminApi.toggleAdminStatus(id, status);
-      if (Array.isArray(res)) {
-        adminOrgs.value = res;
-        successMessage.value = `Admin status changed to ${status}!`;
-        fetchStats();
+      const updated = await superAdminApi.updateAdminStatus(id, newStatus);
+      if (updated) {
+        successMessage.value = `Admin account status updated to ${newStatus === 1 ? 'Active' : 'Inactive'}!`;
+        await fetchAdmins();
+        await fetchStats();
         return true;
       }
       return false;
     } catch (err: any) {
-      error.value = err.message || 'Failed to toggle admin status';
+      error.value = err.message || 'Failed to update admin status';
       return false;
+    } finally {
+      isUpdatingStatus.value = false;
     }
   }
 
-  async function deleteAdminOrg(id: string): Promise<boolean> {
+  async function deleteAdmin(id: number): Promise<boolean> {
     error.value = null;
     successMessage.value = null;
     try {
-      const res = await superAdminApi.deleteAdminOrg(id);
-      if (Array.isArray(res)) {
-        adminOrgs.value = res;
-        successMessage.value = 'Admin Organization removed successfully!';
-        fetchStats();
+      const res = await superAdminApi.deleteAdmin(id);
+      if (res && res.success) {
+        successMessage.value = res.message || 'Admin account removed successfully!';
+        await fetchAdmins();
+        await fetchStats();
         return true;
       }
       return false;
     } catch (err: any) {
-      error.value = err.message || 'Failed to delete admin organization';
+      error.value = err.message || 'Failed to delete admin account';
       return false;
     }
   }
 
   return {
     stats,
-    adminOrgs,
+    admins,
     isLoadingStats,
-    isLoadingOrgs,
-    isCreatingOrg,
-    isUpdatingOrg,
-    isUploadingOrgLogo,
+    isLoadingAdmins,
+    isCreatingAdmin,
+    isUpdatingStatus,
     error,
     successMessage,
-    uploadOrgLogo,
     fetchStats,
-    fetchAdminOrgs,
-    createAdminOrg,
-    updateAdminOrg,
+    fetchAdmins,
+    createAdmin,
     toggleAdminStatus,
-    deleteAdminOrg,
+    deleteAdmin,
   };
 });

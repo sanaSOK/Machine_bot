@@ -280,6 +280,14 @@
             <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 glow-emerald animate-pulse"></span>
             <span class="font-extrabold text-[10px] sm:text-xs text-slate-200">Production Ready</span>
           </div>
+          <button
+            @click="handleLogout"
+            class="p-2 sm:p-2.5 rounded-2xl bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-rose-300 hover:text-white transition-all shadow-md active:scale-95 cursor-pointer flex items-center gap-1.5 text-xs font-bold"
+            title="Log Out"
+          >
+            <LogOut class="w-4 h-4 text-rose-400" />
+            <span class="hidden sm:inline">Logout</span>
+          </button>
         </div>
       </header>
 
@@ -382,30 +390,32 @@ import {
   PanelLeftOpen,
   Menu,
   X,
+  LogOut,
 } from 'lucide-vue-next';
 import { useAdminStore } from '../../stores/admin.store';
 import { useSuperAdminStore } from '../../stores/super-admin.store';
+import { useAuthStore } from '../../stores/auth.store';
 import cleanQrImg from '../../assets/clean-qr.png';
 
 const router = useRouter();
 const adminStore = useAdminStore();
 const superAdminStore = useSuperAdminStore();
+const authStore = useAuthStore();
 const isSidebarCollapsed = ref(false);
 const isMobileDrawerOpen = ref(false);
+
+function handleLogout() {
+  authStore.logout();
+  router.push('/admin/login');
+}
 
 const isCurrentOrgSuspended = computed(() => {
   if (adminStore.settings?.status === 'SUSPENDED' || adminStore.settings?.isSuspended) {
     return true;
   }
-  if (superAdminStore.adminOrgs.length > 0) {
-    const suspendedOrg = superAdminStore.adminOrgs.find(
-      (o) =>
-        o.status === 'SUSPENDED' &&
-        (o.companyName.toLowerCase().includes('eroxii') ||
-          o.adminUsername.toLowerCase().includes('eroxii') ||
-          o.id === '1'),
-    ) || superAdminStore.adminOrgs.find((o) => o.status === 'SUSPENDED');
-    if (suspendedOrg) {
+  if (superAdminStore.admins.length > 0) {
+    const suspendedAdmin = superAdminStore.admins.find((a) => a.is_active === 0);
+    if (suspendedAdmin) {
       return true;
     }
   }
@@ -416,7 +426,7 @@ onMounted(async () => {
   await adminStore.fetchSettings();
   adminStore.fetchStats();
   adminStore.fetchDepartments();
-  superAdminStore.fetchAdminOrgs();
+  superAdminStore.fetchAdmins();
 });
 </script>
 
