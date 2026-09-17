@@ -4,49 +4,45 @@ import { ConfigService } from '@nestjs/config';
 import { AppModule } from './app.module';
 import { AllExceptionsFilter } from './common/filters/http-exception.filter';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
+import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
+import { getAppConfig } from './config/app.config';
 
 async function bootstrap() {
   const logger = new Logger('Bootstrap');
   const app = await NestFactory.create(AppModule);
 
   const configService = app.get(ConfigService);
-  const port = configService.get<number>('PORT') || 3000;
-  const frontendUrl = configService.get<string>('FRONTEND_URL') || 'http://localhost:5173';
+  const { port, corsOrigins } = getAppConfig(configService);
 
-  // Global Prefix
   app.setGlobalPrefix('api');
 
-  // CORS Configuration
   app.enableCors({
-    origin: [
-      frontendUrl,
-      'http://localhost:5173',
-      'http://localhost:3000',
-      'https://telegram.org',
-    ],
+    origin: corsOrigins,
     credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
   });
 
-  // Global DTO Validation Pipe
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
+      forbidNonWhitelisted: true,
       transform: true,
-      forbidNonWhitelisted: false,
+      transformOptions: {
+        enableImplicitConversion: true,
+      },
     }),
   );
 
-  // Global Exception Filter
   app.useGlobalFilters(new AllExceptionsFilter());
-
-
-  // globale msg response
   const reflector = app.get(Reflector);
-  app.useGlobalInterceptors(new TransformInterceptor(reflector));
+  app.useGlobalInterceptors(
+    new LoggingInterceptor(),
+    new TransformInterceptor(reflector),
+  );
 
   await app.listen(port);
   logger.log(`🚀 Telegram Attendance Backend running on http://localhost:${port}/api`);
 }
+
 bootstrap();

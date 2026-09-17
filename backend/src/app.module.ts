@@ -1,16 +1,12 @@
 import { Module } from '@nestjs/common';
-import { ConfigModule, ConfigService } from '@nestjs/config';
-import { TypeOrmModule } from '@nestjs/typeorm';
+import { ConfigModule } from '@nestjs/config';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { ScheduleModule } from '@nestjs/schedule';
 import * as path from 'path';
 import * as fs from 'fs';
 
-import { User } from './users/user.entity';
-import { AdminUser } from './users/admin-user.entity';
-import { Attendance } from './attendance/attendance.entity';
-import { Department } from './admin/department.entity';
-import { Work } from './staffs/work.entity';
+import { validateEnv } from './config/env.validation';
+import { DatabaseModule } from './database/database.module';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { AttendanceModule } from './attendance/attendance.module';
@@ -19,39 +15,28 @@ import { AdminModule } from './admin/admin.module';
 import { SuperAdminModule } from './super-admin/super-admin.module';
 import { ProfileModule } from './profile/profile.module';
 import { MailModule } from './mail/mail.module';
+import { BranchesModule } from './branches/branches.module';
+import { DepartmentsModule } from './departments/departments.module';
+import { WorksModule } from './staffs/works.module';
 import { AppController } from './app.controller';
-import { AdminOrganization } from './super-admin/admin-organization.entity';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
+      validate: validateEnv,
     }),
+
+    DatabaseModule,
+
     ScheduleModule.forRoot(),
-    TypeOrmModule.forRootAsync({
-      imports: [ConfigModule],
-      useFactory: (configService: ConfigService) => ({
-        type: 'mysql',
-        host: configService.get<string>('DB_HOST') || 'localhost',
-        port: parseInt(configService.get<string>('DB_PORT') || '3306', 10),
-        username: configService.get<string>('DB_USERNAME') || 'root',
-        password: configService.get<string>('DB_PASSWORD') || '1234',
-        database: configService.get<string>('DB_DATABASE') || 'telegram_attendance_db',
-        entities: [User, AdminUser, Attendance, Department, Work, AdminOrganization],
-        synchronize: true,
-        logging: true,
-      }),
-      inject: [ConfigService],
-    }),
     ServeStaticModule.forRootAsync({
       useFactory: () => {
         const configs: any[] = [
           {
             rootPath: path.join(process.cwd(), 'uploads'),
             serveRoot: '/uploads',
-            serveStaticOptions: {
-              fallthrough: false,
-            },
+            serveStaticOptions: { fallthrough: false },
           },
         ];
         const frontendDistPath = path.join(process.cwd(), '..', 'frontend', 'dist');
@@ -64,12 +49,16 @@ import { AdminOrganization } from './super-admin/admin-organization.entity';
         return configs;
       },
     }),
+
     AuthModule,
     UsersModule,
     AttendanceModule,
     TelegramModule,
     AdminModule,
     SuperAdminModule,
+    BranchesModule,
+    DepartmentsModule,
+    WorksModule,
     ProfileModule,
     MailModule,
   ],
