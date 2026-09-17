@@ -1,11 +1,17 @@
-import { Injectable, ConflictException, NotFoundException, Logger, OnModuleInit } from '@nestjs/common';
+import {
+  Injectable,
+  ConflictException,
+  NotFoundException,
+  Logger,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Between } from 'typeorm';
+import { Repository, Between, DataSource } from 'typeorm';
 import { AdminUser } from '../users/admin-user.entity';
 import { User } from '../users/user.entity';
 import { Attendance, AttendanceAction } from '../attendance/attendance.entity';
+import { Branch } from '../branches/branch.entity';
 import { CreateAdminDto } from './dto/create-admin.dto';
-import { AdminResponseDto } from './dto/admin-response.dto';
+import { AdminResponseDto, BranchSummaryDto } from './dto/admin-response.dto';
 import { AdminRole } from '../common/decorators/roles.decorator';
 import { PasswordUtil } from '../common/utils/password.util';
 import { MailService } from '../mail/mail.service';
@@ -13,58 +19,29 @@ import * as crypto from 'crypto';
 
 export interface SuperAdminStats {
   totalAdmins: number;
+  totalBranches: number;
   totalActiveStaff: number;
   totalTodayCheckIns: number;
 }
 
 @Injectable()
-export class SuperAdminService implements OnModuleInit {
+export class SuperAdminService {
   private readonly logger = new Logger(SuperAdminService.name);
 
   constructor(
+    private readonly dataSource: DataSource,
     @InjectRepository(AdminUser)
     private readonly adminUserRepository: Repository<AdminUser>,
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
     @InjectRepository(Attendance)
     private readonly attendanceRepository: Repository<Attendance>,
+    @InjectRepository(Branch)
+    private readonly branchRepository: Repository<Branch>,
     private readonly mailService: MailService,
   ) {}
 
-  async onModuleInit() {
-    await this.seedDefaultSuperAdmin();
-  }
-
-  /**
-   * Auto seed init @Account_Super_Admin
-   * @bydefualt:
-   * email: superadmin@eroxii.com
-   * password: Admin@1234
-   */
-  async seedDefaultSuperAdmin() {
-    try {
-      const existingSuperAdmin = await this.adminUserRepository.findOne({
-        where: { role: AdminRole.SUPER_ADMIN },
-      });
-
-      if (!existingSuperAdmin) {
-        const rootSuperAdmin = this.adminUserRepository.create({
-          fullname: 'Super Admin',
-          email: 'superadmin@eroxii.com',
-          password: PasswordUtil.hashPassword('Admin@1234'),
-          role: AdminRole.SUPER_ADMIN,
-          is_active: 1,
-          is_verified: 1,
-        });
-
-        await this.adminUserRepository.save(rootSuperAdmin);
-      }
-    } catch (error) {
-      this.logger.error('Failed seed default Super Admin:', error);
-    }
-  }
-
-  async createAdmin(dto: CreateAdminDto): Promise<AdminResponseDto> {
+  async createAdmin(dto: CreateAdminDto, creatorId: number = 1): Promise<AdminResponseDto> {
     const cleanEmail = dto.email.trim().toLowerCase();
 
     const existingUser = await this.adminUserRepository.findOne({
@@ -75,29 +52,84 @@ export class SuperAdminService implements OnModuleInit {
       throw new ConflictException(`An Admin with email "${cleanEmail}" already exists`);
     }
 
-    const hashedPassword = PasswordUtil.hashPassword(dto.password);
-    const rawToken = crypto.randomBytes(32).toString('hex');
-    const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
-    const expires = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes expiration
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
 
-    const newAdmin = this.adminUserRepository.create({
-      fullname: dto.fullname.trim(),
-      email: cleanEmail,
-      password: hashedPassword,
-      role: AdminRole.ADMIN, 
-      is_active: 1,
-      is_verified: 0,
-      verification_token_hash: tokenHash,
-      verification_expires: expires,
-      profile_url: dto.profile_url?.trim() || null,
-    });
+    try {
+      const branch = await queryRunner.manager.findOne(Branch, {
+        where: { id: dto.branch_id },
+      });
 
-    const saved = await this.adminUserRepository.save(newAdmin);
+      if (!branch) {
+        throw new NotFoundException(`Branch with ID ${dto.branch_id} not found`);
+      }
 
-    // Send verification email
-    await this.mailService.sendVerificationEmail(saved.email, rawToken);
+      const existingAssigned = await queryRunner.manager.findOne(AdminUser, {
+        where: { branch_id: dto.branch_id },
+      });
 
-    return this.toResponseDto(saved);
+      if (existingAssigned || (branch.admin_id && branch.admin_id !== null)) {
+        throw new ConflictException(
+          `Branch "${branch.name}" is already assigned to another Admin account`,
+        );
+      }
+
+      const rawChatId = dto.telegram_chat_id ?? dto.chat_id;
+      let telegramChatId: string | null = null;
+      if (rawChatId !== undefined && rawChatId !== null && String(rawChatId).trim() !== '') {
+        telegramChatId = String(rawChatId).trim();
+        const existingTelegram = await queryRunner.manager.findOne(AdminUser, {
+          where: { telegram_chat_id: telegramChatId },
+        });
+        if (existingTelegram) {
+          throw new ConflictException(
+            `An Admin with Telegram Chat ID "${telegramChatId}" already exists`,
+          );
+        }
+      }
+
+      const hashedPassword = PasswordUtil.hashPassword(dto.password);
+      const rawToken = crypto.randomBytes(32).toString('hex');
+      const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
+      const expires = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes expiration
+
+      const newAdmin = queryRunner.manager.create(AdminUser, {
+        fullname: dto.fullname.trim(),
+        email: cleanEmail,
+        password: hashedPassword,
+        role: AdminRole.ADMIN,
+        branch_id: branch.id,
+        telegram_chat_id: telegramChatId,
+        is_active: 1,
+        is_verified: 0,
+        verification_token_hash: tokenHash,
+        verification_expires: expires,
+        profile_url: dto.profile_url?.trim() || null,
+      });
+
+      const savedAdmin = await queryRunner.manager.save(newAdmin);
+
+      branch.admin_id = savedAdmin.id;
+      await queryRunner.manager.save(branch);
+
+      await queryRunner.commitTransaction();
+
+      // Dispatch verification email (non-blocking outside transaction)
+      try {
+        await this.mailService.sendVerificationEmail(savedAdmin.email, rawToken);
+      } catch (mailError) {
+        this.logger.warn(`Failed to send verification email to ${savedAdmin.email}: ${mailError}`);
+      }
+
+      return this.toResponseDto(savedAdmin, branch);
+    } catch (err) {
+      await queryRunner.rollbackTransaction();
+      this.logger.error('Failed to create Admin and assign Branch:', err);
+      throw err;
+    } finally {
+      await queryRunner.release();
+    }
   }
 
   async getAdmins(status?: number): Promise<AdminResponseDto[]> {
@@ -108,15 +140,17 @@ export class SuperAdminService implements OnModuleInit {
 
     const admins = await this.adminUserRepository.find({
       where,
+      relations: ['branch'],
       order: { created_at: 'DESC' },
     });
 
-    return admins.map((admin) => this.toResponseDto(admin));
+    return admins.map((admin) => this.toResponseDto(admin, admin.branch));
   }
 
   async updateAdminStatus(id: number, isActive: number): Promise<AdminResponseDto> {
     const admin = await this.adminUserRepository.findOne({
       where: { id },
+      relations: ['branch'],
     });
 
     if (!admin) {
@@ -127,15 +161,33 @@ export class SuperAdminService implements OnModuleInit {
       throw new ConflictException('Cannot change status of a Super Admin account');
     }
 
-    admin.is_active = isActive;
-    const updated = await this.adminUserRepository.save(admin);
-    return this.toResponseDto(updated);
-  }
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
 
+    try {
+      admin.is_active = isActive;
+      await queryRunner.manager.save(admin);
+
+      if (admin.branch) {
+        admin.branch.is_active = isActive;
+        await queryRunner.manager.save(admin.branch);
+      }
+
+      await queryRunner.commitTransaction();
+      return this.toResponseDto(admin, admin.branch);
+    } catch (err) {
+      await queryRunner.rollbackTransaction();
+      throw err;
+    } finally {
+      await queryRunner.release();
+    }
+  }
 
   async deleteAdmin(id: number): Promise<{ success: boolean; message: string }> {
     const admin = await this.adminUserRepository.findOne({
       where: { id },
+      relations: ['branch'],
     });
 
     if (!admin) {
@@ -146,15 +198,34 @@ export class SuperAdminService implements OnModuleInit {
       throw new ConflictException('Cannot delete a Super Admin account');
     }
 
-    await this.adminUserRepository.delete(id);
-    return { success: true, message: `Admin account "${admin.email}" successfully deleted` };
-  }
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
 
+    try {
+      if (admin.branch_id) {
+        await queryRunner.manager.update(Branch, admin.branch_id, { admin_id: null });
+      }
+
+      // Delete admin
+      await queryRunner.manager.delete(AdminUser, id);
+
+      await queryRunner.commitTransaction();
+      return { success: true, message: `Admin account "${admin.email}" successfully deleted` };
+    } catch (err) {
+      await queryRunner.rollbackTransaction();
+      throw err;
+    } finally {
+      await queryRunner.release();
+    }
+  }
 
   async getSuperAdminStats(): Promise<SuperAdminStats> {
     const totalAdmins = await this.adminUserRepository.count({
       where: { role: AdminRole.ADMIN },
     });
+
+    const totalBranches = await this.branchRepository.count();
 
     const totalActiveStaff = await this.userRepository.count({
       where: { is_active: true },
@@ -173,18 +244,34 @@ export class SuperAdminService implements OnModuleInit {
 
     return {
       totalAdmins,
+      totalBranches,
       totalActiveStaff,
       totalTodayCheckIns,
     };
   }
 
-  private toResponseDto(entity: AdminUser): AdminResponseDto {
+  private toResponseDto(entity: AdminUser, branch?: Branch | null): AdminResponseDto {
+    let branchDto: BranchSummaryDto | null = null;
+    if (branch) {
+      branchDto = {
+        id: branch.id,
+        name: branch.name,
+        address: branch.address,
+        phone: branch.phone,
+        admin_id: branch.admin_id,
+        is_active: branch.is_active,
+      };
+    }
+
     return {
       id: entity.id,
       fullname: entity.fullname,
       email: entity.email,
       profile_url: entity.profile_url,
       role: entity.role,
+      branch_id: entity.branch_id,
+      telegram_chat_id: entity.telegram_chat_id ?? null,
+      branch: branchDto,
       is_active: entity.is_active,
       is_verified: entity.is_verified,
       created_at: entity.created_at,

@@ -9,6 +9,7 @@ import {
   UseGuards,
   ParseIntPipe,
   Put,
+  Request,
 } from '@nestjs/common';
 import { SuperAdminService } from './super-admin.service';
 import { CreateAdminDto } from './dto/create-admin.dto';
@@ -24,8 +25,9 @@ export class SuperAdminController {
 
   @Post('admins')
   @Roles(AdminRole.SUPER_ADMIN)
-  async createAdmin(@Body() dto: CreateAdminDto) {
-    return this.superAdminService.createAdmin(dto);
+  async createAdmin(@Request() req: any, @Body() dto: CreateAdminDto) {
+    const creatorId = req.user?.id || req.user?.sub || 1;
+    return this.superAdminService.createAdmin(dto, creatorId);
   }
 
   @Get('admins')
