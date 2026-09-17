@@ -45,4 +45,10 @@ describe('RolesGuard', () => {
     const context = createMockContext({});
     expect(() => guard.canActivate(context)).toThrow(ForbiddenException);
   });
+
+  it('should throw ForbiddenException if user is a staff account (accountType = "staff")', () => {
+    jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue([AdminRole.ADMIN]);
+    const context = createMockContext({ role: 2, accountType: 'staff' });
+    expect(() => guard.canActivate(context)).toThrow(ForbiddenException);
+  });
 });

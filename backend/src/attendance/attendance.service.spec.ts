@@ -5,14 +5,16 @@ import { AttendanceService } from './attendance.service';
 import { Attendance, AttendanceAction } from './attendance.entity';
 import { User } from '../users/user.entity';
 import { Department } from '../admin/department.entity';
+import { Branch } from '../branches/branch.entity';
 import { TelegramService } from '../telegram/telegram.service';
-import { AdminService } from '../admin/admin.service';
+import { SettingsService } from '../admin/settings.service';
 
 describe('AttendanceService', () => {
   let service: AttendanceService;
   let repositoryMock: any;
   let userRepositoryMock: any;
   let departmentRepositoryMock: any;
+  let branchRepositoryMock: any;
 
   const mockUser: User = {
     id: 1,
@@ -23,6 +25,8 @@ describe('AttendanceService', () => {
     photo_url: null,
     address: 'Phnom Penh, Cambodia',
     department_id: 1,
+    branch_id: 1,
+    branch: { id: 1, name: 'Head Office', address: 'Main St', phone: null, is_active: 1, created_by: 1 } as any,
     phone: null,
     is_active: true,
     role: 'EMPLOYEE',
@@ -63,6 +67,11 @@ describe('AttendanceService', () => {
       save: jest.fn((entity) => Promise.resolve({ id: 1, ...entity })),
     };
 
+    branchRepositoryMock = {
+      findOne: jest.fn().mockResolvedValue({ id: 1, name: 'Head Office' }),
+      find: jest.fn().mockResolvedValue([{ id: 1, name: 'Head Office' }]),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AttendanceService,
@@ -79,6 +88,10 @@ describe('AttendanceService', () => {
           useValue: departmentRepositoryMock,
         },
         {
+          provide: getRepositoryToken(Branch),
+          useValue: branchRepositoryMock,
+        },
+        {
           provide: TelegramService,
           useValue: {
             sendAttendanceNotification: jest.fn().mockResolvedValue(true),
@@ -86,7 +99,7 @@ describe('AttendanceService', () => {
           },
         },
         {
-          provide: AdminService,
+          provide: SettingsService,
           useValue: {
             getSettings: jest.fn().mockReturnValue({}),
           },
@@ -103,6 +116,9 @@ describe('AttendanceService', () => {
     const result = await service.checkIn(mockUser, mockMulterFile, { latitude: 11.5564, longitude: 104.9282, address: 'Phnom Penh, Cambodia' });
     expect(result).toBeDefined();
     expect(result.action).toBe(AttendanceAction.CHECK_IN);
+    expect(result.branch_id).toBe(1);
+    expect(result.branch).toBeDefined();
+    expect(result.branch.name).toBe('Head Office');
     expect(repositoryMock.save).toHaveBeenCalled();
   });
 
@@ -110,6 +126,7 @@ describe('AttendanceService', () => {
     repositoryMock.find.mockResolvedValue([
       {
         id: 1,
+        branch_id: 1,
         user_id: 1,
         action: AttendanceAction.CHECK_IN,
         created_at: new Date(),
@@ -119,6 +136,9 @@ describe('AttendanceService', () => {
     const result = await service.checkIn(mockUser, mockMulterFile, { latitude: 11.5564, longitude: 104.9282, address: 'Phnom Penh, Cambodia' });
     expect(result).toBeDefined();
     expect(result.action).toBe(AttendanceAction.CHECK_IN);
+    expect(result.branch_id).toBe(1);
+    expect(result.branch).toBeDefined();
+    expect(result.branch.name).toBe('Head Office');
     expect(repositoryMock.save).toHaveBeenCalled();
   });
 
@@ -126,6 +146,7 @@ describe('AttendanceService', () => {
     repositoryMock.find.mockResolvedValue([
       {
         id: 1,
+        branch_id: 1,
         user_id: 1,
         action: AttendanceAction.CHECK_IN,
         created_at: new Date(),
@@ -135,6 +156,9 @@ describe('AttendanceService', () => {
     const result = await service.checkOut(mockUser, mockMulterFile, { latitude: 11.5564, longitude: 104.9282, address: 'Phnom Penh, Cambodia' });
     expect(result).toBeDefined();
     expect(result.action).toBe(AttendanceAction.CHECK_OUT);
+    expect(result.branch_id).toBe(1);
+    expect(result.branch).toBeDefined();
+    expect(result.branch.name).toBe('Head Office');
   });
 
   it('should throw BadRequestException when user tries to check-out without checking in first', async () => {

@@ -5,11 +5,12 @@ import { SuperAdminService } from './super-admin.service';
 import { AdminUser } from '../users/admin-user.entity';
 import { User } from '../users/user.entity';
 import { Attendance } from '../attendance/attendance.entity';
+import { Branch } from '../branches/branch.entity';
 import { MailModule } from '../mail/mail.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([AdminUser, User, Attendance]),
+    TypeOrmModule.forFeature([AdminUser, User, Attendance, Branch]),
     MailModule,
   ],
   controllers: [SuperAdminController],

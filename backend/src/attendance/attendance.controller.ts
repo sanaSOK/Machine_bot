@@ -13,6 +13,7 @@ import { diskStorage } from 'multer';
 import * as path from 'path';
 import * as fs from 'fs';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { StaffOnlyGuard } from '../common/guards/staff-only.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { User } from '../users/user.entity';
 import { AttendanceService } from './attendance.service';
@@ -33,16 +34,12 @@ const imageFileFilter = (req: any, file: Express.Multer.File, callback: any) => 
 const storageConfig = diskStorage({
   destination: (req: any, file: Express.Multer.File, cb) => {
     const user = req.user;
-    // Prefer Telegram username (e.g. "superappbot"), or fallback to telegram_user_id (e.g. "639544003") or user_id
     const rawUsername = user?.username || user?.telegram_user_id || `user_${user?.id || 'unknown'}`;
-    // Sanitize folder name for filesystem compatibility
     const userFolder = rawUsername.replace(/[^a-zA-Z0-9_-]/g, '_');
 
     const now = new Date();
     const year = now.getFullYear().toString();
     const month = String(now.getMonth() + 1).padStart(2, '0');
-
-    // Subfolder path: uploads/attendance/<userFolder>/YYYY/MM
     const uploadPath = path.join(process.cwd(), 'uploads', 'attendance', userFolder, year, month);
 
     if (!fs.existsSync(uploadPath)) {
@@ -58,7 +55,7 @@ const storageConfig = diskStorage({
 });
 
 @Controller('attendance')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, StaffOnlyGuard)
 export class AttendanceController {
   constructor(private readonly attendanceService: AttendanceService) {}
 

@@ -6,18 +6,23 @@ import {
   UpdateDateColumn,
   ManyToOne,
   JoinColumn,
+  Index,
+  Unique,
 } from 'typeorm';
 import { User } from '../users/user.entity';
-import { Department } from '../admin/department.entity';
+import { Department } from '../departments/department.entity';
 
 @Entity('works')
+@Unique(['staff_id', 'department_id'])
 export class Work {
   @PrimaryGeneratedColumn()
   id: number;
 
+  @Index()
   @Column({ name: 'staff_id', type: 'int' })
   staff_id: number;
 
+  @Index()
   @Column({ name: 'department_id', type: 'int' })
   department_id: number;
 

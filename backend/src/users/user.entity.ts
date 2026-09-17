@@ -5,8 +5,12 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   OneToMany,
+  ManyToOne,
+  JoinColumn,
+  Index,
 } from 'typeorm';
 import { Attendance } from '../attendance/attendance.entity';
+import { Branch } from '../branches/branch.entity';
 
 @Entity('staffs')
 export class User {
@@ -15,6 +19,14 @@ export class User {
 
   @Column({ name: 'department_id', type: 'int', default: 1 })
   department_id: number;
+
+  @Index()
+  @Column({ name: 'branch_id', type: 'int', nullable: true })
+  branch_id: number | null;
+
+  @ManyToOne(() => Branch, (branch) => branch.staffs, { nullable: true, onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'branch_id' })
+  branch: Branch | null;
 
   @Column({ name: 'fullname', type: 'varchar', length: 100 })
   first_name: string;
@@ -42,9 +54,6 @@ export class User {
 
   @Column({ name: 'username', type: 'varchar', length: 100, nullable: true })
   username: string | null;
-
-  @Column({ name: 'admin_id', type: 'int', nullable: true, default: 2 })
-  admin_id?: number | null;
 
   // Unmapped helper fields for existing services
   last_name?: string | null;

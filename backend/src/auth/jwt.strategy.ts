@@ -8,6 +8,7 @@ import { UsersService } from '../users/users.service';
 import { User } from '../users/user.entity';
 import { AdminUser } from '../users/admin-user.entity';
 import { AccountStatus } from '../common/enums/account-status.enum';
+import { AdminRole } from '../common/decorators/roles.decorator';
 import { getJwtConfig } from './config/jwt.config';
 
 export interface JwtPayload {
@@ -15,6 +16,7 @@ export interface JwtPayload {
   type?: 'admin' | 'staff';
   email?: string;
   role?: number;
+  branch_id?: number | null;
   telegram_user_id?: string;
 }
 
@@ -38,10 +40,15 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     if (payload.type === 'admin') {
       const admin = await this.adminUserRepository.findOne({
         where: { id: payload.sub },
+        relations: ['branch'],
       });
       if (!admin || admin.is_active !== AccountStatus.ACTIVE) {
         throw new UnauthorizedException('Admin account is inactive');
       }
+      if (admin.role === AdminRole.ADMIN && admin.branch && admin.branch.is_active !== 1) {
+        throw new UnauthorizedException('Assigned branch has been deactivated');
+      }
+      (admin as any).accountType = 'admin';
       return admin;
     }
 
@@ -50,6 +57,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     if (!user || !user.is_active) {
       throw new UnauthorizedException('Staff account is inactive or non-existent');
     }
+    (user as any).accountType = 'staff';
     return user;
   }
 }

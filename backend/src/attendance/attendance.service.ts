@@ -4,10 +4,11 @@ import { Repository, Between } from 'typeorm';
 import { Attendance, AttendanceAction } from './attendance.entity';
 import { User } from '../users/user.entity';
 import { Department } from '../admin/department.entity';
+import { Branch } from '../branches/branch.entity';
 import { CheckInDto } from './dto/check-in.dto';
 import { CheckOutDto } from './dto/check-out.dto';
 import { TelegramService } from '../telegram/telegram.service';
-import { AdminService } from '../admin/admin.service';
+import { SettingsService } from '../admin/settings.service';
 
 export interface TodayStatusResponse {
   checkIn: Attendance | null;
@@ -16,6 +17,9 @@ export interface TodayStatusResponse {
   canCheckIn: boolean;
   canCheckOut: boolean;
 }
+
+import { WorksService } from '../staffs/works.service';
+import { Optional } from '@nestjs/common';
 
 @Injectable()
 export class AttendanceService {
@@ -26,8 +30,12 @@ export class AttendanceService {
     private readonly userRepository: Repository<User>,
     @InjectRepository(Department)
     private readonly departmentRepository: Repository<Department>,
+    @InjectRepository(Branch)
+    private readonly branchRepository: Repository<Branch>,
     private readonly telegramService: TelegramService,
-    private readonly adminService: AdminService,
+    private readonly settingsService: SettingsService,
+    @Optional()
+    private readonly worksService?: WorksService,
   ) {}
 
   async getTodayStatus(userId: number): Promise<TodayStatusResponse> {
@@ -40,6 +48,7 @@ export class AttendanceService {
         user_id: userId,
         created_at: Between(startOfDay, endOfDay),
       },
+      relations: ['branch'],
       order: {
         created_at: 'ASC',
       },
@@ -103,7 +112,7 @@ export class AttendanceService {
       throw new BadRequestException('User context is invalid');
     }
 
-    if (user.department_id) {
+    if (user.department_id && user.branch) {
       const deptExists = await this.departmentRepository.findOne({ where: { id: user.department_id } });
       if (deptExists) {
         return user;
@@ -112,11 +121,18 @@ export class AttendanceService {
 
     const validDeptId = await this.getValidDepartmentId();
 
-    const existingStaff = await this.userRepository.findOne({ where: { id: user.id } });
+    const existingStaff = await this.userRepository.findOne({ where: { id: user.id }, relations: ['branch'] });
     if (existingStaff) {
       if (!existingStaff.department_id || existingStaff.department_id !== validDeptId) {
         existingStaff.department_id = validDeptId;
         await this.userRepository.save(existingStaff);
+      }
+      if (this.worksService && existingStaff.id && existingStaff.department_id) {
+        try {
+          await this.worksService.ensureStaffWorkSchedule(existingStaff.id, existingStaff.department_id);
+        } catch (e) {
+          // Non-blocking
+        }
       }
       return existingStaff;
     }
@@ -126,11 +142,20 @@ export class AttendanceService {
       id: user.id,
       first_name: staffName,
       department_id: validDeptId,
+      branch_id: 1,
       role: 1,
       is_active: true,
       photo_url: user.photo_url || user.profile_url || null,
     });
-    return await this.userRepository.save(newStaff);
+    const savedStaff = await this.userRepository.save(newStaff);
+    if (this.worksService && savedStaff.id && savedStaff.department_id) {
+      try {
+        await this.worksService.ensureStaffWorkSchedule(savedStaff.id, savedStaff.department_id);
+      } catch (e) {
+        // Non-blocking
+      }
+    }
+    return savedStaff;
   }
 
   async checkIn(
@@ -144,9 +169,18 @@ export class AttendanceService {
 
     const staffUser = await this.resolveStaffUser(user);
     const photoUrl = this.formatFileUrl(file);
+    const branchId = staffUser.branch_id || 1;
+
+    let branch = staffUser.branch;
+    if (!branch || branch.id !== branchId) {
+      branch = await this.branchRepository.findOne({ where: { id: branchId } });
+    }
+    const branchName = branch?.name || 'Head Office';
 
     // Save Check-In record with current exact timestamp
     const attendance = this.attendanceRepository.create({
+      branch_id: branchId,
+      branch: branch || undefined,
       user_id: staffUser.id,
       user: staffUser,
       action: AttendanceAction.CHECK_IN,
@@ -158,9 +192,12 @@ export class AttendanceService {
     });
 
     const saved = await this.attendanceRepository.save(attendance);
+    if (!saved.branch && branch) {
+      saved.branch = branch;
+    }
 
     // Send Telegram Photo Notification Alert
-    this.sendTelegramCheckInNotification(staffUser, file.path, saved).catch((e) =>
+    this.sendTelegramCheckInNotification(staffUser, file.path, saved, branchName).catch((e) =>
       console.warn('Failed to send Telegram check-in notification:', e),
     );
 
@@ -184,9 +221,18 @@ export class AttendanceService {
     }
 
     const photoUrl = this.formatFileUrl(file);
+    const branchId = staffUser.branch_id || 1;
+
+    let branch = staffUser.branch;
+    if (!branch || branch.id !== branchId) {
+      branch = await this.branchRepository.findOne({ where: { id: branchId } });
+    }
+    const branchName = branch?.name || 'Head Office';
 
     // Save Check-Out record with current exact timestamp
     const attendance = this.attendanceRepository.create({
+      branch_id: branchId,
+      branch: branch || undefined,
       user_id: staffUser.id,
       user: staffUser,
       action: AttendanceAction.CHECK_OUT,
@@ -198,9 +244,12 @@ export class AttendanceService {
     });
 
     const saved = await this.attendanceRepository.save(attendance);
+    if (!saved.branch && branch) {
+      saved.branch = branch;
+    }
 
     // Send Telegram Photo Notification Alert
-    this.sendTelegramCheckOutNotification(staffUser, file.path, saved).catch((e) =>
+    this.sendTelegramCheckOutNotification(staffUser, file.path, saved, branchName).catch((e) =>
       console.warn('Failed to send Telegram check-out notification:', e),
     );
 
@@ -211,15 +260,33 @@ export class AttendanceService {
     user: User,
     filePath: string,
     attendance: Attendance,
+    branchName: string,
   ) {
     if (!user.telegram_user_id) return;
 
-    const settings = this.adminService.getSettings();
+    const settings = this.settingsService.getSettings();
     const now = new Date(attendance.created_at);
 
-    const [startHour, startMin] = (settings.workStartTime || '08:00').split(':').map(Number);
+    let workStartTime = settings.workStartTime || '08:00';
+    let gracePeriod = settings.gracePeriodMinutes ?? 15;
+
+    if (this.worksService && user.id && user.department_id) {
+      try {
+        const staffWork = await this.worksService.getStaffWorkSchedule(user.id, user.department_id);
+        if (staffWork?.work_start_time) {
+          workStartTime = staffWork.work_start_time;
+        }
+        if (staffWork?.grace_period_minutes != null) {
+          gracePeriod = staffWork.grace_period_minutes;
+        }
+      } catch (e) {
+        // Fallback to settings
+      }
+    }
+
+    const [startHour, startMin] = workStartTime.split(':').map(Number);
     const workStartMins = (startHour || 8) * 60 + (startMin || 0);
-    const maxOnTimeMins = workStartMins + (settings.gracePeriodMinutes ?? 15);
+    const maxOnTimeMins = workStartMins + gracePeriod;
 
     const checkInMins = now.getHours() * 60 + now.getMinutes();
 
@@ -245,10 +312,11 @@ export class AttendanceService {
     const caption =
       `⚠️ <b>ATTENDANCE ALERT</b>\n\n` +
       `✅ <b>CHECK IN SUCCESS</b>\n\n` +
-      `- <b>${fullName}</b>\n` +
-      `- <b>${empId}</b>\n` +
-      `- <b>${department}</b>\n` +
-      `- <b>Status: ${status}</b>\n` +
+      `- <b>🏢 Branch:</b> ${branchName}\n` +
+      `- <b>👤 Name:</b> ${fullName}\n` +
+      `- <b>🆔 ID:</b> ${empId}\n` +
+      `- <b>📁 Role:</b> ${department}\n` +
+      `- <b>⏰ Status: ${status}</b>\n` +
       lateText +
       mapsText;
 
@@ -268,8 +336,9 @@ export class AttendanceService {
     user: User,
     filePath: string,
     attendance: Attendance,
+    branchName: string,
   ) {
-    const settings = this.adminService.getSettings();
+    const settings = this.settingsService.getSettings();
 
     const fullName = `${user.first_name || ''} ${user.last_name || ''}`.trim() || 'Employee';
     const empId = `EMP${String(user.id).padStart(3, '0')}`;
@@ -285,10 +354,11 @@ export class AttendanceService {
     const caption =
       `⚠️ <b>ATTENDANCE ALERT</b>\n\n` +
       `🚪 <b>CHECK OUT SUCCESS</b>\n\n` +
-      `- <b>${fullName}</b>\n` +
-      `- <b>${empId}</b>\n` +
-      `- <b>${department}</b>\n` +
-      `- <b>Status: CHECK OUT</b>\n` +
+      `- <b>🏢 Branch:</b> ${branchName}\n` +
+      `- <b>👤 Name:</b> ${fullName}\n` +
+      `- <b>🆔 ID:</b> ${empId}\n` +
+      `- <b>📁 Role:</b> ${department}\n` +
+      `- <b>⏰ Status: CHECK OUT</b>\n` +
       mapsText;
 
     // Send photo directly to Telegram user chat
@@ -306,6 +376,7 @@ export class AttendanceService {
   async getHistory(userId: number): Promise<Attendance[]> {
     return this.attendanceRepository.find({
       where: { user_id: userId },
+      relations: ['branch'],
       order: { created_at: 'DESC' },
     });
   }

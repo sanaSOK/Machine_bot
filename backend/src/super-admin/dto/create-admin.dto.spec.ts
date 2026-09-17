@@ -7,6 +7,7 @@ describe('CreateAdminDto Validation', () => {
     dto.fullname = partial.fullname ?? 'Valid Admin';
     dto.email = partial.email ?? 'admin@example.com';
     dto.password = partial.password ?? 'Password123!';
+    dto.branch_id = partial.branch_id ?? 1;
     if (partial.profile_url !== undefined) {
       dto.profile_url = partial.profile_url;
     }
@@ -62,6 +63,41 @@ describe('CreateAdminDto Validation', () => {
       const dto = createDto({ email: 'user@localhost' });
       const errors = await validate(dto);
       expect(errors.some((e) => e.property === 'email')).toBe(true);
+    });
+  });
+
+  describe('Branch ID Validation', () => {
+    it('should fail if branch_id is missing', async () => {
+      const dto = createDto({});
+      delete (dto as any).branch_id;
+      const errors = await validate(dto);
+      expect(errors.some((e) => e.property === 'branch_id')).toBe(true);
+    });
+
+    it('should fail if branch_id is not integer', async () => {
+      const dto = createDto({ branch_id: 'abc' as any });
+      const errors = await validate(dto);
+      expect(errors.some((e) => e.property === 'branch_id')).toBe(true);
+    });
+  });
+
+  describe('Telegram Chat ID Validation', () => {
+    it('should pass when telegram_chat_id is provided as a number', async () => {
+      const dto = createDto({ telegram_chat_id: 123456789 });
+      const errors = await validate(dto);
+      expect(errors.length).toBe(0);
+    });
+
+    it('should pass when telegram_chat_id is provided as a string', async () => {
+      const dto = createDto({ telegram_chat_id: '123456789' });
+      const errors = await validate(dto);
+      expect(errors.length).toBe(0);
+    });
+
+    it('should pass when chat_id is provided', async () => {
+      const dto = createDto({ chat_id: 987654321 });
+      const errors = await validate(dto);
+      expect(errors.length).toBe(0);
     });
   });
 });

@@ -6,6 +6,7 @@ import {
   MinLength,
   Matches,
   IsOptional,
+  IsInt,
 } from 'class-validator';
 
 export class CreateAdminDto {
@@ -34,6 +35,16 @@ export class CreateAdminDto {
     },
   )
   password: string;
+
+  @IsNotEmpty({ message: 'Branch ID is required' })
+  @IsInt({ message: 'Branch ID must be an integer' })
+  branch_id: number;
+
+  @IsOptional()
+  telegram_chat_id?: string | number;
+
+  @IsOptional()
+  chat_id?: string | number;
 
   @IsOptional()
   @IsString()
