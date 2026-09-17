@@ -8,6 +8,7 @@ import {
   Index,
 } from 'typeorm';
 import { User } from '../users/user.entity';
+import { Branch } from '../branches/branch.entity';
 
 export enum AttendanceAction {
   CHECK_IN = 'CHECK_IN',
@@ -15,9 +16,18 @@ export enum AttendanceAction {
 }
 
 @Entity('attendances')
+@Index(['branch_id', 'created_at'])
 export class Attendance {
   @PrimaryGeneratedColumn()
   id: number;
+
+  @Index()
+  @Column({ name: 'branch_id', type: 'int', default: 1 })
+  branch_id: number;
+
+  @ManyToOne(() => Branch, (branch) => branch.attendances, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'branch_id' })
+  branch: Branch;
 
   @Index()
   @Column({ name: 'staff_id', type: 'int' }) // this modify user_id from staff_id
