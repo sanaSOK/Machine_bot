@@ -26,6 +26,14 @@ export interface AdminAuthResponse {
     fullname: string;
     email: string;
     role: number;
+    branch_id?: number | null;
+    branch?: {
+      id: number;
+      name: string;
+      address?: string | null;
+      phone?: string | null;
+      is_active: number;
+    } | null;
     profile_url: string | null;
   };
 }
@@ -64,6 +72,7 @@ export class AuthService {
 
     const admin = await this.adminUserRepository.findOne({
       where: { email: cleanEmail },
+      relations: ['branch'],
     });
 
     if (!admin || !admin.password) {
@@ -79,6 +88,10 @@ export class AuthService {
       throw new UnauthorizedException('Admin account has been deactivated');
     }
 
+    if (admin.role === AdminRole.ADMIN && admin.branch && admin.branch.is_active !== 1) {
+      throw new UnauthorizedException('Assigned branch has been deactivated');
+    }
+
     if (admin.role === AdminRole.ADMIN && !admin.is_verified) {
       throw new UnauthorizedException('Please confirm your email address to activate your account');
     }
@@ -90,6 +103,7 @@ export class AuthService {
       sub: admin.id,
       email: admin.email,
       role: admin.role,
+      branch_id: admin.branch_id,
       type: 'admin',
     };
 
@@ -101,6 +115,16 @@ export class AuthService {
         fullname: admin.fullname,
         email: admin.email,
         role: admin.role,
+        branch_id: admin.branch_id,
+        branch: admin.branch
+          ? {
+              id: admin.branch.id,
+              name: admin.branch.name,
+              address: admin.branch.address,
+              phone: admin.branch.phone,
+              is_active: admin.branch.is_active,
+            }
+          : null,
         profile_url: admin.profile_url,
       },
     };
