@@ -10,23 +10,7 @@ import { Attendance, AttendanceAction } from '../attendance/attendance.entity';
 import { resolveBranchScope } from '../common/utils/branch-scope.util';
 import { DepartmentsService } from '../departments/departments.service';
 import { SettingsService } from './settings.service';
-
-export interface AdminAttendanceQueryDto {
-  search?: string;
-  type?: 'CHECK_IN' | 'CHECK_OUT';
-  date?: string;
-  status?: string;
-  limit?: number;
-  offset?: number;
-}
-
-export interface AdminEmployeeQueryDto {
-  search?: string;
-  role?: string;
-  department?: string;
-  limit?: number;
-  offset?: number;
-}
+import { AdminAttendanceQueryDto, AdminEmployeeQueryDto, UpdateUserDto } from './dto';
 
 /**
  * AdminService — core admin business logic.
@@ -274,15 +258,7 @@ export class AdminService {
 
   async updateUser(
     userId: number,
-    dto: {
-      first_name?: string;
-      last_name?: string;
-      username?: string;
-      role?: string;
-      address?: string;
-      is_active?: boolean;
-      branch_id?: number;
-    },
+    dto: UpdateUserDto,
     userContext?: any,
   ) {
     const user = await this.userRepository.findOne({ where: { id: userId }, relations: ['branch'] });

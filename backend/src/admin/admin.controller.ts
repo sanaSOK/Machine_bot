@@ -18,12 +18,20 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { Response } from 'express';
-import { AdminService, AdminAttendanceQueryDto, AdminEmployeeQueryDto } from './admin.service';
+import { AdminService } from './admin.service';
 import { SettingsService, SystemSettings } from './settings.service';
 import { ReportsService } from './reports.service';
 import { DepartmentsService } from '../departments/departments.service';
 import { CreateDepartmentDto } from '../departments/dto/create-department.dto';
 import { UpdateDepartmentDto } from '../departments/dto/update-department.dto';
+import {
+  BranchQueryDto,
+  AdminAttendanceQueryDto,
+  AdminEmployeeQueryDto,
+  UpdateUserDto,
+  UpdateRoleDto,
+  ToggleStatusDto,
+} from './dto';
 import { logoMulterOptions } from '../common/multer';
 import { Roles, AdminRole } from '../common/decorators/roles.decorator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -44,9 +52,9 @@ export class AdminController {
   @Get('stats')
   async getStats(
     @Request() req: any,
-    @Query('branch_id', ParseIntOptionalPipe) branchId?: number,
+    @Query() query: BranchQueryDto,
   ) {
-    return this.adminService.getStats(req.user, branchId);
+    return this.adminService.getStats(req.user, query.branch_id);
   }
 
 //  settings
@@ -73,9 +81,9 @@ export class AdminController {
   @Get('departments')
   async getDepartments(
     @Request() req: any,
-    @Query('branch_id', ParseIntOptionalPipe) branchId?: number,
+    @Query() query: BranchQueryDto,
   ) {
-    return this.departmentsService.getDepartments(req.user, branchId);
+    return this.departmentsService.getDepartments(req.user, query.branch_id);
   }
 
   @Post('departments')
@@ -102,17 +110,12 @@ export class AdminController {
   @Get('employees')
   async getEmployees(
     @Request() req: any,
-    @Query('search') search?: string,
-    @Query('department') department?: string,
-    @Query('role') role?: string,
-    @Query('limit', ParseIntOptionalPipe) limit?: number,
-    @Query('offset', ParseIntOptionalPipe) offset?: number,
-    @Query('branch_id', ParseIntOptionalPipe) branchId?: number,
+    @Query() query: AdminEmployeeQueryDto,
   ) {
     return this.adminService.getEmployees(
       req.user,
-      { search, department, role, limit, offset } satisfies AdminEmployeeQueryDto,
-      branchId,
+      query,
+      query.branch_id,
     );
   }
 
@@ -128,33 +131,25 @@ export class AdminController {
   async updateUserRole(
     @Request() req: any,
     @Param('id', ParseIntOptionalPipe) id: number,
-    @Body('role') role: string,
+    @Body() dto: UpdateRoleDto,
   ) {
-    return this.adminService.updateUserRole(id, role, req.user);
+    return this.adminService.updateUserRole(id, dto.role, req.user);
   }
 
   @Patch('users/:id/status')
   async toggleUserStatus(
     @Request() req: any,
     @Param('id', ParseIntOptionalPipe) id: number,
-    @Body('is_active') is_active: boolean,
+    @Body() dto: ToggleStatusDto,
   ) {
-    return this.adminService.toggleUserStatus(id, is_active, req.user);
+    return this.adminService.toggleUserStatus(id, dto.is_active, req.user);
   }
 
   @Patch('users/:id')
   async updateUser(
     @Request() req: any,
     @Param('id', ParseIntOptionalPipe) id: number,
-    @Body() dto: {
-      first_name?: string;
-      last_name?: string;
-      username?: string;
-      role?: string;
-      address?: string;
-      is_active?: boolean;
-      branch_id?: number;
-    },
+    @Body() dto: UpdateUserDto,
   ) {
     return this.adminService.updateUser(id, dto, req.user);
   }
@@ -172,20 +167,15 @@ export class AdminController {
   @Get('attendance')
   async getAttendance(
     @Request() req: any,
-    @Query('search') search?: string,
-    @Query('type') type?: 'CHECK_IN' | 'CHECK_OUT',
-    @Query('date') date?: string,
-    @Query('status') status?: string,
-    @Query('limit', ParseIntOptionalPipe) limit?: number,
-    @Query('offset', ParseIntOptionalPipe) offset?: number,
-    @Query('branch_id', ParseIntOptionalPipe) branchId?: number,
+    @Query() query: AdminAttendanceQueryDto,
   ) {
     return this.adminService.getAttendanceLogs(
       req.user,
-      { search, type, date, status, limit: limit ?? 50, offset: offset ?? 0 } satisfies AdminAttendanceQueryDto,
-      branchId,
+      query,
+      query.branch_id,
     );
   }
+
 
 
   // Reports
