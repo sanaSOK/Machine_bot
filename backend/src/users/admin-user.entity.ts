@@ -5,7 +5,10 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   Index,
+  OneToOne,
+  JoinColumn,
 } from 'typeorm';
+import { Branch } from '../branches/branch.entity';
 
 @Entity('users')
 export class AdminUser {
@@ -26,6 +29,16 @@ export class AdminUser {
 
   @Column({ type: 'tinyint', default: 1 })
   role: number; // 1 = Super-Admin, 2 = Admin
+
+  @Column({ name: 'branch_id', type: 'int', nullable: true, unique: true })
+  branch_id: number | null;
+
+  @Column({ name: 'telegram_chat_id', type: 'bigint', nullable: true, unique: true })
+  telegram_chat_id: string | null;
+
+  @OneToOne(() => Branch, (branch) => branch.admin, { nullable: true, onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'branch_id' })
+  branch: Branch | null;
 
   @Column({ name: 'is_active', type: 'tinyint', default: 1 })
   is_active: number;

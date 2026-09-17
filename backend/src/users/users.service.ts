@@ -12,12 +12,17 @@ export interface TelegramUserData {
   photo_url?: string;
 }
 
+import { WorksService } from '../staffs/works.service';
+import { Optional } from '@nestjs/common';
+
 @Injectable()
 export class UsersService implements OnModuleInit {
   constructor(
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
     private readonly telegramService: TelegramService,
+    @Optional()
+    private readonly worksService?: WorksService,
   ) {}
 
   async syncAllTelegramUsernames() {
@@ -57,12 +62,14 @@ export class UsersService implements OnModuleInit {
   async findByTelegramId(telegramUserId: string): Promise<User | null> {
     return this.userRepository.findOne({
       where: { telegram_user_id: telegramUserId },
+      relations: ['branch'],
     });
   }
 
   async findById(id: number): Promise<User | null> {
     return this.userRepository.findOne({
       where: { id },
+      relations: ['branch'],
     });
   }
 
@@ -90,11 +97,21 @@ export class UsersService implements OnModuleInit {
         first_name: fullName,
         username: telegramUsername,
         photo_url: photoUrl,
+        branch_id: 1,
         department_id: 1,
         role: 1,
         is_active: true,
       });
-      return this.userRepository.save(user);
+      const savedUser = await this.userRepository.save(user);
+      if (this.worksService && savedUser.id && savedUser.department_id) {
+        try {
+          await this.worksService.ensureStaffWorkSchedule(savedUser.id, savedUser.department_id);
+        } catch (e) {
+          // Non-critical fallback
+        }
+      }
+      const reloaded = await this.findById(savedUser.id);
+      return reloaded || savedUser;
     }
 
     // Update profile info dynamically for EVERY Telegram user whenever they open app / check-in
